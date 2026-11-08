@@ -1,0 +1,8 @@
+{
+  "name": "Erlass Coding Competition 2026 - SD Islam Al Ikhlas",
+  "description": "Platform Lomba Koding Erlass 2026 untuk siswa SD Islam Al Ikhlas. Akses ide proyek, modul pembelajaran, dan file Scratch (.sb3).",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

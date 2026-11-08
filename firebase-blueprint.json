@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "Peserta lomba koding dan informasi proyek Erlass Coding Competition SD Islam Al Ikhlas",
+      "type": "object",
+      "properties": {
+        "studentName": {
+          "type": "string",
+          "description": "Nama lengkap atau panggilan siswa",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "competitionIdea": {
+          "type": "string",
+          "description": "Judul dan deskripsi detail ide proyek Scratch lomba koding",
+          "minLength": 2,
+          "maxLength": 3000
+        },
+        "moduleUrl": {
+          "type": "string",
+          "description": "URL download atau preview file modul panduan PDF",
+          "maxLength": 1000
+        },
+        "sb3FileUrl": {
+          "type": "string",
+          "description": "URL file proyek Scratch (.sb3)",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Waktu pendaftaran atau pembuatan data siswa"
+        }
+      },
+      "required": [
+        "studentName",
+        "competitionIdea"
+      ]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": {
+        "$ref": "Student"
+      },
+      "description": "Koleksi data siswa peserta Erlass Coding Competition 2026"
+    }
+  }
+}

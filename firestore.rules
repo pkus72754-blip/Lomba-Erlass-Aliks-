@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidStudent(data) {
+      return data.studentName is string &&
+             data.studentName.size() >= 2 &&
+             data.studentName.size() <= 100 &&
+             data.competitionIdea is string &&
+             data.competitionIdea.size() >= 2 &&
+             data.competitionIdea.size() <= 3000 &&
+             (!('moduleUrl' in data) || (data.moduleUrl is string && data.moduleUrl.size() <= 1000)) &&
+             (!('sb3FileUrl' in data) || (data.sb3FileUrl is string && data.sb3FileUrl.size() <= 1000));
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Students collection for Erlass Coding Competition
+    match /students/{studentId} {
+      // Students can search/lookup their project data
+      allow read: if true;
+
+      // Admin create & update with validation
+      allow create: if isValidId(studentId) && isValidStudent(request.resource.data);
+      allow update: if isValidId(studentId) && isValidStudent(request.resource.data);
+      allow delete: if isValidId(studentId);
+    }
+  }
+}
