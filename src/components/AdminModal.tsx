@@ -763,6 +763,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           <p className="text-[10px] font-bold text-black/70 mt-1">
                             💡 Format didukung: File .sb3 (otomatis ke Firestore), Link/ID Scratch resmi, atau Link Google Drive.
                           </p>
+                          <p className="text-[10px] font-bold text-red-600 mt-0.5">
+                            ⚠️ Tips Google Drive: Pastikan setelan akses file di Google Drive disetel ke <u>"Siapa saja yang memiliki link"</u> agar proyek Scratch otomatis tampil di TurboWarp!
+                          </p>
                         </div>
                       </div>
                     </div>

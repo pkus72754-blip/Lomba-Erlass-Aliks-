@@ -432,8 +432,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </a>
             </div>
 
-            {/* Instruction Banner if file needs drag & drop */}
-            {!sb3Info.isDirectEmbeddable && (
+            {/* Status Banner for Google Drive or Drag & Drop */}
+            {sb3Info.type === 'google_drive' ? (
+              <div className="bg-[#FFF59D] border-b-2 border-black p-2 px-3 text-[11px] font-bold text-black flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#35E88E] border border-black animate-pulse"></span>
+                  <span>Tersambung ke Google Drive! Proyek sedang dimuat langsung di TurboWarp ⚡</span>
+                </span>
+                <span className="text-[10px] text-black/70">
+                  (Pastikan izin file Google Drive: <em>"Siapa saja yang memiliki link"</em>)
+                </span>
+              </div>
+            ) : !sb3Info.isDirectEmbeddable ? (
               <div className="bg-[#FFF59D] border-b-2 border-black p-2 px-3 text-[11px] font-bold text-black flex items-center justify-between gap-2">
                 <span className="truncate">
                   💡 <strong>Cara Main:</strong> Klik "Unduh .sb3" lalu <strong>seret (drag & drop)</strong> filenya ke layar di bawah!
@@ -448,7 +458,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   </a>
                 )}
               </div>
-            )}
+            ) : null}
 
             <div className="flex-1 bg-neutral-900 relative overflow-hidden">
               <iframe

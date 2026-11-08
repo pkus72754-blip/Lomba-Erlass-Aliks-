@@ -92,19 +92,38 @@ export function parseScratchUrl(url?: string): ScratchUrlInfo {
 
   // 2. Google Drive Link
   if (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com')) {
-    const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
+    const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
+                       trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                       trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
     const fileId = driveMatch ? driveMatch[1] : '';
-    const downloadUrl = fileId 
+
+    const directDownload = fileId 
       ? `https://drive.google.com/uc?export=download&id=${fileId}` 
       : trimmed;
 
+    // Direct CORS-enabled proxy URL for TurboWarp
+    // Uses universal proxy so TurboWarp can fetch the raw .sb3 from Google Drive seamlessly
+    const gDriveDownload = fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : trimmed;
+    const corsProxyUrl = fileId 
+      ? `https://corsproxy.io/?${encodeURIComponent(gDriveDownload)}`
+      : '';
+
+    const embedUrl = corsProxyUrl
+      ? `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(corsProxyUrl)}`
+      : `https://turbowarp.org/embed.html`;
+
+    const editorUrl = corsProxyUrl
+      ? `https://turbowarp.org/editor?project_url=${encodeURIComponent(corsProxyUrl)}`
+      : `https://turbowarp.org/editor`;
+
     return {
       type: 'google_drive',
-      embedUrl: 'https://turbowarp.org/embed.html',
-      editorUrl: 'https://turbowarp.org/editor',
-      downloadUrl: downloadUrl,
-      isDirectEmbeddable: false,
-      hint: 'File .sb3 tersimpan di Google Drive. Klik Unduh .sb3 lalu seret file ke player TurboWarp di bawah!'
+      embedUrl,
+      editorUrl,
+      downloadUrl: directDownload,
+      scratchId: fileId,
+      isDirectEmbeddable: Boolean(fileId),
+      hint: 'Proyek Scratch (.sb3) dari Google Drive dimuat langsung ke TurboWarp ⚡'
     };
   }
 
