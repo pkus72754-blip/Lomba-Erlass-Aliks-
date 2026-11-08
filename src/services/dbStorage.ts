@@ -49,3 +49,38 @@ export async function getFileFromIndexedDB(key: string): Promise<Blob | null> {
     return null;
   }
 }
+
+// Convert stored key / expired blob URL to a fresh active Blob URL if available in IndexedDB
+export async function getFreshBlobUrl(key: string): Promise<string | null> {
+  try {
+    const blob = await getFileFromIndexedDB(key);
+    if (blob) {
+      return URL.createObjectURL(blob);
+    }
+  } catch (e) {
+    console.warn('Gagal membaca file dari IndexedDB:', e);
+  }
+  return null;
+}
+
+// Check if a URL is a valid remote public HTTP URL (NOT blob: and NOT data:)
+export function isPublicHttpUrl(url?: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim().toLowerCase();
+  return (trimmed.startsWith('http://') || trimmed.startsWith('https://')) && 
+         !trimmed.startsWith('blob:') && 
+         !trimmed.startsWith('data:');
+}
+
+// Format URLs for iframe embedding (e.g. Google Drive view -> preview)
+export function formatEmbedUrl(url?: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  
+  // Google Drive: convert /view to /preview for iframe embed
+  if (trimmed.includes('drive.google.com') && trimmed.includes('/view')) {
+    return trimmed.replace(/\/view.*$/, '/preview');
+  }
+  
+  return trimmed;
+}

@@ -63,8 +63,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [competitionIdea, setCompetitionIdea] = useState('');
   const [moduleUrl, setModuleUrl] = useState('');
   const [moduleFileName, setModuleFileName] = useState('');
+  const [moduleFileKey, setModuleFileKey] = useState('');
   const [sb3Url, setSb3Url] = useState('');
   const [sb3FileName, setSb3FileName] = useState('');
+  const [sb3FileKey, setSb3FileKey] = useState('');
 
   // Upload progress states
   const [isUploadingModule, setIsUploadingModule] = useState(false);
@@ -105,8 +107,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setCompetitionIdea(student.competitionIdea);
     setModuleUrl(student.moduleUrl || '');
     setModuleFileName(student.moduleFileName || '');
+    setModuleFileKey(student.moduleFileKey || '');
     setSb3Url(student.sb3FileUrl || '');
     setSb3FileName(student.sb3FileName || '');
+    setSb3FileKey(student.sb3FileKey || '');
     setActiveTab('form');
   };
 
@@ -118,8 +122,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setCompetitionIdea('');
     setModuleUrl('');
     setModuleFileName('');
+    setModuleFileKey('');
     setSb3Url('');
     setSb3FileName('');
+    setSb3FileKey('');
     setActiveTab('form');
   };
 
@@ -149,6 +155,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       });
       setModuleUrl(res.url);
       setModuleFileName(res.fileName);
+      if (res.fileKey) setModuleFileKey(res.fileKey);
       setNotification({ 
         type: 'success', 
         message: `Modul "${file.name}" berhasil disiapkan (${res.storageType === 'cloud' ? 'Firebase Cloud' : 'Penyimpanan Cepat Instan'})!` 
@@ -176,6 +183,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       });
       setSb3Url(res.url);
       setSb3FileName(res.fileName);
+      if (res.fileKey) setSb3FileKey(res.fileKey);
       setNotification({ 
         type: 'success', 
         message: `File Scratch "${file.name}" berhasil disiapkan (${res.storageType === 'cloud' ? 'Firebase Cloud' : 'Penyimpanan Cepat Instan'})!` 
@@ -208,8 +216,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         competitionIdea: competitionIdea.trim(),
         moduleUrl: moduleUrl.trim(),
         moduleFileName: moduleFileName.trim(),
+        moduleFileKey: moduleFileKey.trim(),
         sb3FileUrl: sb3Url.trim(),
         sb3FileName: sb3FileName.trim(),
+        sb3FileKey: sb3FileKey.trim(),
         createdAt: new Date().toISOString()
       });
 

@@ -176,6 +176,8 @@ export function subscribeToStudents(
               createdAt: data.createdAt || new Date().toISOString(),
               moduleFileName: data.moduleFileName || '',
               sb3FileName: data.sb3FileName || '',
+              moduleFileKey: data.moduleFileKey || '',
+              sb3FileKey: data.sb3FileKey || '',
               category: data.category || '',
               grade: data.grade || ''
             };
@@ -225,6 +227,8 @@ export async function fetchAllStudents(): Promise<{ students: Student[]; source:
           createdAt: data.createdAt || new Date().toISOString(),
           moduleFileName: data.moduleFileName || '',
           sb3FileName: data.sb3FileName || '',
+          moduleFileKey: data.moduleFileKey || '',
+          sb3FileKey: data.sb3FileKey || '',
           category: data.category || '',
           grade: data.grade || ''
         };
@@ -274,6 +278,8 @@ export async function saveStudent(
         createdAt: fullStudent.createdAt,
         moduleFileName: fullStudent.moduleFileName || '',
         sb3FileName: fullStudent.sb3FileName || '',
+        moduleFileKey: fullStudent.moduleFileKey || '',
+        sb3FileKey: fullStudent.sb3FileKey || '',
         category: fullStudent.category || '',
         grade: fullStudent.grade || ''
       });
@@ -316,7 +322,7 @@ export async function uploadFileToStorage(
   file: File, 
   folder: 'modules' | 'scratch_projects',
   onProgress?: (percent: number) => void
-): Promise<{ url: string; fileName: string; storageType: 'cloud' | 'local'; note?: string }> {
+): Promise<{ url: string; fileName: string; storageType: 'cloud' | 'local'; note?: string; fileKey?: string }> {
   const { storage, isLive } = initializeFirebaseServices();
 
   const timestamp = Date.now();

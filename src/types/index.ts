@@ -7,6 +7,8 @@ export interface Student {
   createdAt: string;
   moduleFileName?: string;
   sb3FileName?: string;
+  moduleFileKey?: string;
+  sb3FileKey?: string;
   category?: string;
   grade?: string;
 }
