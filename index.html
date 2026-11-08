@@ -12,8 +12,83 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&family=Outfit:wght@400;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN Fallback for robust styling on any hosting -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Lexend', 'Outfit', 'sans-serif'],
+              mono: ['Space Mono', 'monospace'],
+            },
+            colors: {
+              canvas: '#FFFDF0',
+              neoYellow: '#FFE600',
+              neoPink: '#FF6B97',
+              neoGreen: '#35E88E',
+              neoBlue: '#38BDF8',
+              neoPurple: '#A78BFA',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #FFFDF0;
+        font-family: 'Lexend', 'Outfit', sans-serif;
+        color: #000;
+        margin: 0;
+        padding: 0;
+      }
+      .neo-border {
+        border: 3px solid #000000 !important;
+      }
+      .neo-border-thick {
+        border: 4px solid #000000 !important;
+      }
+      .neo-shadow {
+        box-shadow: 4px 4px 0px #000000 !important;
+      }
+      .neo-shadow-lg {
+        box-shadow: 6px 6px 0px #000000 !important;
+      }
+      .neo-shadow-xl {
+        box-shadow: 8px 8px 0px #000000 !important;
+      }
+      .neo-shadow-sm {
+        box-shadow: 2px 2px 0px #000000 !important;
+      }
+      .neo-btn {
+        transition: all 0.15s ease-in-out !important;
+      }
+      .neo-btn:hover {
+        transform: translate(-2px, -2px) !important;
+        box-shadow: 6px 6px 0px #000000 !important;
+      }
+      .neo-btn:active {
+        transform: translate(2px, 2px) !important;
+        box-shadow: 2px 2px 0px #000000 !important;
+      }
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #FFFDF0;
+        border-left: 2px solid #000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #FFE600;
+        border: 2px solid #000;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #FF6B97;
+      }
+    </style>
   </head>
-  <body class="bg-[#FFFDF0] text-black font-['Lexend',sans-serif] selection:bg-[#FFE600] selection:text-black">
+  <body class="bg-[#FFFDF0] text-black font-['Lexend',sans-serif] selection:bg-[#FFE600] selection:text-black min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
