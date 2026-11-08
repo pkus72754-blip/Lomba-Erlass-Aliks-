@@ -47,8 +47,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ totalStudents, onExplo
         {/* Subtitle / School Label */}
         <div className="max-w-2xl mx-auto mb-8">
           <p className="text-base sm:text-xl font-bold text-black bg-[#FFF59D] border-3 border-black neo-shadow-sm p-4 leading-relaxed">
-            Selamat datang, para calon programmer cilik <span className="font-black underline decoration-4 decoration-[#FF6B97]">SD Islam Al Ikhlas</span>! 
-            Temukan ide lomba, modul koding resmi, dan unduh file proyek <span className="font-black bg-white px-1 border border-black">.sb3</span> Scratch kamu di sini.
+            Selamat datang, para calon programmer cilik <span className="font-black underline decoration-4 decoration-[#FF6B97]">SD Islam Al Ikhlas</span>! Ide lomba kamu, referensi modul koding dari ide kamu, dan referensi proyek <span className="font-black bg-white px-1 border border-black">.sb3</span> Scratch kamu di sini yah...
           </p>
         </div>
 

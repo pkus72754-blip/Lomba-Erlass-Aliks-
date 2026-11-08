@@ -67,14 +67,22 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
               <span>Unduh .SB3</span>
             </a>
             <a
+              href={sb3Url ? `https://turbowarp.org/editor?project_url=${encodeURIComponent(sb3Url)}` : "https://turbowarp.org/editor"}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Buka di TurboWarp ⚡</span>
+            </a>
+            <a
               href="https://scratch.mit.edu/projects/editor/"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FF6B97] hover:bg-pink-500 text-white font-black text-xs border-2 border-black neo-shadow-sm neo-btn"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#FF6B97] hover:bg-pink-500 text-white font-black text-xs border-2 border-black neo-shadow-sm neo-btn"
             >
               <ExternalLink className="w-4 h-4" />
-              <span className="hidden sm:inline">Editor Scratch Online</span>
-              <span className="sm:hidden">Scratch</span>
+              <span>Scratch MIT</span>
             </a>
             <button
               onClick={onClose}
