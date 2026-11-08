@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Play, Download, ExternalLink, HelpCircle, Code2, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
-import { isPublicHttpUrl } from '../services/dbStorage';
+import { parseScratchUrl } from '../services/fileHelpers';
 
 interface ScratchViewerModalProps {
   isOpen: boolean;
@@ -24,17 +24,8 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
   if (!isOpen) return null;
 
   const displayFileName = fileName || `Proyek_${studentName.replace(/\s+/g, '_')}.sb3`;
-
-  // Safely check if sb3Url is a public HTTP/HTTPS URL
-  const hasPublicHttp = isPublicHttpUrl(sb3Url);
-
-  const turboWarpEmbedUrl = hasPublicHttp 
-    ? `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(sb3Url)}`
-    : `https://turbowarp.org/embed.html`;
-
-  const turboWarpEditorUrl = hasPublicHttp
-    ? `https://turbowarp.org/editor?project_url=${encodeURIComponent(sb3Url)}`
-    : `https://turbowarp.org/editor`;
+  const sb3Info = parseScratchUrl(sb3Url);
+  const effectiveDownloadUrl = sb3Info.downloadUrl || sb3Url;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs">
@@ -62,9 +53,9 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {sb3Url && (
+            {effectiveDownloadUrl && (
               <a
-                href={sb3Url}
+                href={effectiveDownloadUrl}
                 download={displayFileName}
                 target="_blank"
                 rel="noreferrer"
@@ -75,7 +66,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
               </a>
             )}
             <a
-              href={turboWarpEditorUrl}
+              href={sb3Info.editorUrl}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
@@ -142,7 +133,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
                   <span>Muat File (Load)</span>
                 </div>
                 <p className="text-black/80">
-                  Di editor, klik menu <strong>File &gt; Muat dari komputermu</strong> lalu pilih file .sb3 tadi!
+                  Di editor, klik menu <strong>File &gt; Muat dari komputermu</strong> atau cukup seret (drag & drop) file .sb3 ke layar!
                 </p>
               </div>
             </div>
@@ -152,7 +143,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
         {/* Embedded TurboWarp Runner Section */}
         <div className="flex-1 bg-neutral-900 relative flex flex-col items-center justify-center overflow-hidden">
           <iframe
-            src={turboWarpEmbedUrl}
+            src={sb3Info.embedUrl}
             title="Scratch Runner Embed"
             allow="fullscreen; autoplay; gamepad; camera; microphone"
             className="w-full flex-1 border-none bg-neutral-900"
@@ -163,7 +154,9 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
         <div className="bg-[#FFFDF0] border-t-4 border-black p-3 px-4 flex flex-wrap items-center justify-between gap-2 text-xs font-black">
           <div className="flex items-center gap-2">
             <span className="bg-[#35E88E] px-2 py-0.5 border border-black text-black">TURBOWARP READY</span>
-            <span className="text-black/80">TurboWarp adalah runner Scratch 3.0 super cepat dengan kompiler FPS tinggi dan dukungan gamepad.</span>
+            <span className="text-black/80">
+              {sb3Info.hint || 'TurboWarp adalah runner Scratch 3.0 super cepat dengan kompiler FPS tinggi.'}
+            </span>
           </div>
           <button
             onClick={onClose}

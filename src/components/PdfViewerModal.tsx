@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Download, ExternalLink, BookOpen, AlertCircle } from 'lucide-react';
-import { formatEmbedUrl } from '../services/dbStorage';
+import { parsePdfUrl, base64ToBlob } from '../services/fileHelpers';
 
 interface PdfViewerModalProps {
   isOpen: boolean;
@@ -20,7 +20,20 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   if (!isOpen) return null;
 
   const displayFileName = fileName || `Modul_Pembelajaran_${studentName.replace(/\s+/g, '_')}.pdf`;
-  const formattedEmbed = formatEmbedUrl(pdfUrl);
+  const pdfInfo = parsePdfUrl(pdfUrl);
+
+  // If Data URL, convert to session blob URL so browser handles it cleanly
+  let effectiveEmbedUrl = pdfInfo.embedUrl;
+  let effectiveDownloadUrl = pdfInfo.downloadUrl || pdfUrl;
+
+  if (pdfInfo.isDataUrl && typeof window !== 'undefined') {
+    try {
+      const blob = base64ToBlob(pdfUrl, 'application/pdf');
+      const blobUrl = URL.createObjectURL(blob);
+      effectiveEmbedUrl = `${blobUrl}#toolbar=1`;
+      effectiveDownloadUrl = blobUrl;
+    } catch {}
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs">
@@ -43,10 +56,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {pdfUrl && (
+            {effectiveDownloadUrl && (
               <>
                 <a
-                  href={pdfUrl}
+                  href={effectiveDownloadUrl}
                   download={displayFileName}
                   target="_blank"
                   rel="noreferrer"
@@ -56,7 +69,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
                   <span>Unduh PDF</span>
                 </a>
                 <a
-                  href={pdfUrl}
+                  href={effectiveDownloadUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#FFE600] text-black font-extrabold text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
@@ -77,19 +90,20 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 
         {/* Modal Body / Viewer */}
         <div className="flex-1 bg-white relative overflow-hidden flex flex-col">
-          {pdfUrl ? (
+          {effectiveEmbedUrl ? (
             <div className="w-full h-full relative flex flex-col">
               <iframe
-                src={formattedEmbed.startsWith('data:') ? formattedEmbed : `${formattedEmbed}#toolbar=1`}
+                src={effectiveEmbedUrl}
                 title="Viewer Modul PDF"
                 className="w-full flex-1 border-none bg-white"
+                allow="autoplay"
               />
               <div className="bg-white border-t-2 border-black p-2.5 px-4 flex items-center justify-between text-xs font-black">
                 <span className="text-black/80 truncate max-w-sm">
                   Jika tampilan dokumen tidak muncul di pratinjau browser, klik tombol buka di tab baru:
                 </span>
                 <a
-                  href={pdfUrl}
+                  href={effectiveDownloadUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="bg-[#FFE600] hover:bg-yellow-300 text-black px-3 py-1 border border-black font-black flex items-center gap-1 text-xs neo-shadow-sm neo-btn"

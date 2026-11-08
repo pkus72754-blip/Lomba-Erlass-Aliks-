@@ -643,9 +643,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                     {/* File Input 1: Modul PDF */}
                     <div className="p-4 bg-[#35E88E]/20 border-2 border-black">
-                      <label className="block text-xs font-black uppercase text-black mb-1">
-                        1. Berkas Modul Pembelajaran (PDF):
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-black uppercase text-black">
+                          1. Berkas Modul Pembelajaran (PDF):
+                        </label>
+                        <span className="text-[10px] font-bold bg-white px-2 py-0.5 border border-black text-black">
+                          Upload PDF atau Tempel Link Drive
+                        </span>
+                      </div>
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <label className={`cursor-pointer px-4 py-2 bg-white hover:bg-neutral-100 border-2 border-black neo-shadow-sm font-black text-xs flex items-center gap-2 ${
@@ -689,18 +694,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             type="text"
                             value={moduleUrl}
                             onChange={(e) => setModuleUrl(e.target.value)}
-                            placeholder="Atau tempelkan tautan URL Modul PDF (Google Drive / Link langsung)..."
+                            placeholder="Atau tempelkan link Google Drive Modul (atur: Siapa saja yang memiliki link)..."
                             className="w-full px-3 py-1.5 bg-white border border-black font-bold text-xs"
                           />
+                          <p className="text-[10px] font-bold text-black/70 mt-1">
+                            💡 Format didukung: File PDF (otomatis ke Firestore), Link Google Drive, atau Link PDF langsung.
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     {/* File Input 2: File Scratch .sb3 */}
                     <div className="p-4 bg-[#38BDF8]/20 border-2 border-black">
-                      <label className="block text-xs font-black uppercase text-black mb-1">
-                        2. File Proyek Scratch (.sb3):
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-black uppercase text-black">
+                          2. File Proyek Scratch (.sb3):
+                        </label>
+                        <span className="text-[10px] font-bold bg-white px-2 py-0.5 border border-black text-black">
+                          Upload .sb3 atau Link/ID Scratch
+                        </span>
+                      </div>
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <label className={`cursor-pointer px-4 py-2 bg-white hover:bg-neutral-100 border-2 border-black neo-shadow-sm font-black text-xs flex items-center gap-2 ${
@@ -744,9 +757,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             type="text"
                             value={sb3Url}
                             onChange={(e) => setSb3Url(e.target.value)}
-                            placeholder="Atau tempelkan tautan URL file .sb3 (Dropbox / Google Drive / Direct link)..."
+                            placeholder="Atau tempel link/ID Scratch (contoh: https://scratch.mit.edu/projects/12345678) atau link Google Drive..."
                             className="w-full px-3 py-1.5 bg-white border border-black font-bold text-xs"
                           />
+                          <p className="text-[10px] font-bold text-black/70 mt-1">
+                            💡 Format didukung: File .sb3 (otomatis ke Firestore), Link/ID Scratch resmi, atau Link Google Drive.
+                          </p>
                         </div>
                       </div>
                     </div>

@@ -20,6 +20,7 @@ import {
 } from 'firebase/storage';
 import { Student, FirebaseConfigType } from '../types';
 import { storeFileInIndexedDB } from './dbStorage';
+import { fileToBase64 } from './fileHelpers';
 
 /**
  * =========================================================================
@@ -328,8 +329,9 @@ export async function uploadFileToStorage(
   const timestamp = Date.now();
   const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const filePath = `${folder}/${timestamp}_${sanitizedName}`;
+  const fileKey = `file_${filePath}`;
 
-  // 1. Coba upload ke Firebase Storage Cloud dengan timeout 8 detik
+  // 1. Coba upload ke Firebase Storage Cloud dengan timeout 6 detik
   if (isLive && storage) {
     try {
       const storageRef = ref(storage, filePath);
@@ -337,16 +339,16 @@ export async function uploadFileToStorage(
         contentType: file.type || (file.name.endsWith('.sb3') ? 'application/x.scratch.sb3' : 'application/octet-stream') 
       };
 
-      const cloudUploadPromise = new Promise<{ url: string; fileName: string; storageType: 'cloud' }>((resolve, reject) => {
+      const cloudUploadPromise = new Promise<{ url: string; fileName: string; storageType: 'cloud'; fileKey: string }>((resolve, reject) => {
         const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
-        // Batas waktu 8 detik
+        // Batas waktu 6 detik
         const timeoutTimer = setTimeout(() => {
           try {
             uploadTask.cancel();
           } catch {}
-          reject(new Error('Firebase Storage timeout (lebih dari 8 detik).'));
-        }, 8000);
+          reject(new Error('Firebase Storage timeout.'));
+        }, 6000);
 
         uploadTask.on(
           'state_changed',
@@ -367,7 +369,8 @@ export async function uploadFileToStorage(
               resolve({
                 url: downloadUrl,
                 fileName: file.name,
-                storageType: 'cloud'
+                storageType: 'cloud',
+                fileKey
               });
             } catch (err) {
               reject(err);
@@ -379,18 +382,40 @@ export async function uploadFileToStorage(
       const res = await cloudUploadPromise;
       return res;
     } catch (err: any) {
-      console.warn('Firebase Storage Cloud dilewati/timeout, mengalihkan ke penyimpanan instan:', err?.message || err);
+      console.warn('Firebase Storage Cloud dilewati/unauthorized, beralih ke penyimpanan cerdas:', err?.message || err);
     }
   }
 
-  // 2. Penyimpanan Cepat Instan melalui IndexedDB Browser (tanpa batas ukuran, 0% hang)
+  // 2. Jika file <= 800 KB, ubah menjadi Data URL (Base64) agar tersimpan langsung di Firestore
+  // Ini menjamin file dapat diakses 100% oleh semua siswa dari komputer/HP manapun tanpa link mati!
+  if (onProgress) onProgress(90);
+  await storeFileInIndexedDB(fileKey, file);
+
+  if (file.size <= 800 * 1024) {
+    try {
+      const dataUrl = await fileToBase64(file);
+      if (onProgress) onProgress(100);
+      return {
+        url: dataUrl,
+        fileName: file.name,
+        storageType: 'cloud',
+        fileKey,
+        note: 'Tersimpan otomatis ke database Firestore (Base64)'
+      };
+    } catch (b64Err) {
+      console.warn('Gagal membaca file base64:', b64Err);
+    }
+  }
+
+  // 3. Jika file > 800 KB, simpan di IndexedDB
   if (onProgress) onProgress(100);
-  const blobUrl = await storeFileInIndexedDB(`file_${filePath}`, file);
+  const blobUrl = URL.createObjectURL(file);
   return {
     url: blobUrl,
     fileName: file.name,
     storageType: 'local',
-    note: 'Tersimpan di Penyimpanan Cepat Instan'
+    fileKey,
+    note: 'Ukuran file besar (>800KB). Disarankan menempelkan link Google Drive agar bisa dibuka semua siswa.'
   };
 }
 

@@ -12,13 +12,20 @@ import {
   Share2, 
   PlayCircle,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Gamepad2,
+  HelpCircle
 } from 'lucide-react';
 import { Student } from '../types';
 import { fireStudentSuccessConfetti } from './Confetti';
 import { PdfViewerModal } from './PdfViewerModal';
 import { ScratchViewerModal } from './ScratchViewerModal';
-import { isPublicHttpUrl, formatEmbedUrl, getFreshBlobUrl } from '../services/dbStorage';
+import { 
+  parseScratchUrl, 
+  parsePdfUrl, 
+  base64ToBlob 
+} from '../services/fileHelpers';
+import { getFreshBlobUrl } from '../services/dbStorage';
 
 interface StudentDashboardProps {
   student: Student;
@@ -35,66 +42,112 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [showScratchModal, setShowScratchModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Dynamic resolved URLs
-  const [activeModuleUrl, setActiveModuleUrl] = useState<string>(student.moduleUrl || '');
-  const [activeSb3Url, setActiveSb3Url] = useState<string>(student.sb3FileUrl || '');
+  // Resolved URLs & download links
+  const [resolvedPdfEmbedUrl, setResolvedPdfEmbedUrl] = useState<string>('');
+  const [resolvedPdfDownloadUrl, setResolvedPdfDownloadUrl] = useState<string>('');
+  const [resolvedSb3DownloadUrl, setResolvedSb3DownloadUrl] = useState<string>('');
+  const [isPdfDeadBlob, setIsPdfDeadBlob] = useState<boolean>(false);
 
   useEffect(() => {
     // Fire celebratory confetti when student dashboard loads
     fireStudentSuccessConfetti();
   }, [student.id]);
 
-  // Resolve fresh blob URLs or formatted embed URLs
+  // Resolve fresh live URLs for PDF & SB3
   useEffect(() => {
+    let activeBlobUrls: string[] = [];
     let isMounted = true;
 
-    const resolveFiles = async () => {
-      // 1. Resolve Module URL
-      if (student.moduleFileKey) {
-        const fresh = await getFreshBlobUrl(student.moduleFileKey);
-        if (fresh && isMounted) {
-          setActiveModuleUrl(fresh);
-        } else if (student.moduleUrl && isMounted) {
-          setActiveModuleUrl(formatEmbedUrl(student.moduleUrl));
+    const resolveAll = async () => {
+      // 1. RESOLVE PDF MODULE
+      setIsPdfDeadBlob(false);
+      const rawPdf = student.moduleUrl?.trim() || '';
+
+      if (!rawPdf) {
+        setResolvedPdfEmbedUrl('');
+        setResolvedPdfDownloadUrl('');
+      } else if (rawPdf.startsWith('data:')) {
+        // Base64 Data URL -> convert to fresh session Blob URL so iframes can embed it safely
+        const blob = base64ToBlob(rawPdf, 'application/pdf');
+        const sessionUrl = URL.createObjectURL(blob);
+        activeBlobUrls.push(sessionUrl);
+        if (isMounted) {
+          setResolvedPdfEmbedUrl(`${sessionUrl}#toolbar=1`);
+          setResolvedPdfDownloadUrl(sessionUrl);
         }
-      } else if (student.moduleUrl) {
-        if (student.moduleUrl.startsWith('blob:') && student.moduleFileName) {
-          const fresh = await getFreshBlobUrl(`file_${student.moduleFileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
-          if (fresh && isMounted) {
-            setActiveModuleUrl(fresh);
-          } else if (isMounted) {
-            setActiveModuleUrl(formatEmbedUrl(student.moduleUrl));
-          }
+      } else if (rawPdf.startsWith('blob:')) {
+        // Blob URL from storage
+        let freshUrl: string | null = null;
+        if (student.moduleFileKey) {
+          freshUrl = await getFreshBlobUrl(student.moduleFileKey);
+        } else if (student.moduleFileName) {
+          freshUrl = await getFreshBlobUrl(`file_modules/${student.moduleFileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+        }
+
+        if (freshUrl && isMounted) {
+          activeBlobUrls.push(freshUrl);
+          setResolvedPdfEmbedUrl(`${freshUrl}#toolbar=1`);
+          setResolvedPdfDownloadUrl(freshUrl);
         } else if (isMounted) {
-          setActiveModuleUrl(formatEmbedUrl(student.moduleUrl));
+          // Dead blob URL from previous session on another machine
+          setIsPdfDeadBlob(true);
+          setResolvedPdfEmbedUrl('');
+          setResolvedPdfDownloadUrl('');
+        }
+      } else {
+        // Google Drive / Direct HTTP Link
+        const pdfInfo = parsePdfUrl(rawPdf);
+        if (isMounted) {
+          setResolvedPdfEmbedUrl(pdfInfo.embedUrl);
+          setResolvedPdfDownloadUrl(pdfInfo.downloadUrl || rawPdf);
         }
       }
 
-      // 2. Resolve SB3 URL
-      if (student.sb3FileKey) {
-        const fresh = await getFreshBlobUrl(student.sb3FileKey);
-        if (fresh && isMounted) {
-          setActiveSb3Url(fresh);
-        } else if (student.sb3FileUrl && isMounted) {
-          setActiveSb3Url(student.sb3FileUrl);
+      // 2. RESOLVE SCRATCH (.SB3) FILE
+      const rawSb3 = student.sb3FileUrl?.trim() || '';
+
+      if (!rawSb3) {
+        setResolvedSb3DownloadUrl('');
+      } else if (rawSb3.startsWith('data:')) {
+        // Base64 Data URL -> create fresh Blob URL for download button
+        const blob = base64ToBlob(rawSb3, 'application/x.scratch.sb3');
+        const sessionUrl = URL.createObjectURL(blob);
+        activeBlobUrls.push(sessionUrl);
+        if (isMounted) {
+          setResolvedSb3DownloadUrl(sessionUrl);
         }
-      } else if (student.sb3FileUrl) {
-        if (student.sb3FileUrl.startsWith('blob:') && student.sb3FileName) {
-          const fresh = await getFreshBlobUrl(`file_${student.sb3FileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
-          if (fresh && isMounted) {
-            setActiveSb3Url(fresh);
-          } else if (isMounted) {
-            setActiveSb3Url(student.sb3FileUrl);
-          }
+      } else if (rawSb3.startsWith('blob:')) {
+        let freshUrl: string | null = null;
+        if (student.sb3FileKey) {
+          freshUrl = await getFreshBlobUrl(student.sb3FileKey);
+        } else if (student.sb3FileName) {
+          freshUrl = await getFreshBlobUrl(`file_scratch_projects/${student.sb3FileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+        }
+
+        if (freshUrl && isMounted) {
+          activeBlobUrls.push(freshUrl);
+          setResolvedSb3DownloadUrl(freshUrl);
         } else if (isMounted) {
-          setActiveSb3Url(student.sb3FileUrl);
+          setResolvedSb3DownloadUrl(rawSb3);
+        }
+      } else {
+        const sb3Info = parseScratchUrl(rawSb3);
+        if (isMounted) {
+          setResolvedSb3DownloadUrl(sb3Info.downloadUrl || rawSb3);
         }
       }
     };
 
-    resolveFiles();
+    resolveAll();
+
     return () => {
       isMounted = false;
+      // Revoke any created session blob URLs to prevent memory leaks
+      activeBlobUrls.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {}
+      });
     };
   }, [student]);
 
@@ -106,24 +159,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  /**
-   * CRITICAL BUGFIX:
-   * Only append ?project_url= if activeSb3Url is a remote public HTTP/HTTPS URL!
-   * NEVER pass blob: URLs to turbowarp.org/embed.html because cross-origin iframes
-   * cannot fetch parent window blob URLs and TurboWarp will crash with:
-   * "TypeError: Failed to execute 'fetch' on 'Window': Failed to parse URL from https://blob:https://..."
-   */
-  const hasPublicHttpSb3 = isPublicHttpUrl(activeSb3Url);
+  // Scratch URL Info for TurboWarp embed
+  const sb3Info = parseScratchUrl(student.sb3FileUrl);
 
-  const turboWarpEmbedUrl = hasPublicHttpSb3
-    ? `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(activeSb3Url)}`
-    : `https://turbowarp.org/embed.html`;
-
-  const turboWarpEditorUrl = hasPublicHttpSb3
-    ? `https://turbowarp.org/editor?project_url=${encodeURIComponent(activeSb3Url)}`
-    : `https://turbowarp.org/editor`;
-
-  const formattedPdfEmbedUrl = formatEmbedUrl(activeModuleUrl);
+  const displaySb3FileName = student.sb3FileName || `Proyek_${student.studentName.replace(/\s+/g, '_')}.sb3`;
+  const displayPdfFileName = student.moduleFileName || `Modul_${student.studentName.replace(/\s+/g, '_')}.pdf`;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-200">
@@ -188,7 +228,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
             <a
-              href={turboWarpEditorUrl}
+              href={sb3Info.editorUrl}
               target="_blank"
               rel="noreferrer"
               className="px-5 py-3 bg-[#38BDF8] hover:bg-sky-400 text-black font-black text-sm border-3 border-black neo-shadow neo-btn flex items-center justify-center gap-2"
@@ -196,10 +236,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               <PlayCircle className="w-5 h-5 text-black" />
               <span>Buka di TurboWarp ⚡</span>
             </a>
-            {activeModuleUrl && (
+            {resolvedPdfDownloadUrl && (
               <a
-                href={activeModuleUrl}
-                download={student.moduleFileName || `Modul_${student.studentName}.pdf`}
+                href={resolvedPdfDownloadUrl}
+                download={displayPdfFileName}
                 target="_blank"
                 rel="noreferrer"
                 className="px-5 py-3 bg-[#35E88E] hover:bg-emerald-400 text-black font-black text-sm border-3 border-black neo-shadow neo-btn flex items-center justify-center gap-2 cursor-pointer"
@@ -212,7 +252,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
       </div>
 
-      {/* KARTU IDE LOMBA SISWA (Prominently Displayed Full Width) */}
+      {/* KARTU IDE LOMBA SISWA */}
       <div className="bg-[#FF6B97] border-4 border-black neo-shadow-lg flex flex-col overflow-hidden mb-8">
         {/* Card Header */}
         <div className="p-4 bg-black text-white flex items-center justify-between border-b-3 border-black">
@@ -276,9 +316,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {activeModuleUrl && (
+            {resolvedPdfDownloadUrl && (
               <a
-                href={activeModuleUrl}
+                href={resolvedPdfDownloadUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="px-3.5 py-2 bg-[#35E88E] hover:bg-emerald-400 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn flex items-center gap-1.5 cursor-pointer"
@@ -288,7 +328,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </a>
             )}
             <a
-              href={turboWarpEditorUrl}
+              href={sb3Info.editorUrl}
               target="_blank"
               rel="noreferrer"
               className="px-3.5 py-2 bg-[#38BDF8] hover:bg-sky-400 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn flex items-center gap-1.5"
@@ -310,13 +350,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 <span>Pratinjau Modul: {student.studentName}</span>
               </span>
               <div className="flex items-center gap-2">
-                {activeModuleUrl && (
+                {resolvedPdfDownloadUrl && (
                   <a
-                    href={activeModuleUrl}
-                    download={student.moduleFileName || `Modul_${student.studentName}.pdf`}
+                    href={resolvedPdfDownloadUrl}
+                    download={displayPdfFileName}
                     target="_blank"
                     rel="noreferrer"
-                    className="bg-white px-2.5 py-1 border border-black hover:bg-[#FFE600] text-black font-black text-xs neo-shadow-sm neo-btn flex items-center gap-1"
+                    className="bg-white px-2.5 py-1 border border-black hover:bg-[#FFE600] text-black font-black text-xs neo-shadow-sm neo-btn flex items-center gap-1 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Unduh</span>
@@ -326,27 +366,41 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             </div>
 
             <div className="flex-1 bg-neutral-100 relative overflow-hidden flex flex-col">
-              {activeModuleUrl ? (
+              {resolvedPdfEmbedUrl ? (
                 <div className="w-full h-full relative flex flex-col">
                   <iframe
-                    src={formattedPdfEmbedUrl.startsWith('data:') ? formattedPdfEmbedUrl : `${formattedPdfEmbedUrl}#toolbar=1`}
+                    src={resolvedPdfEmbedUrl}
                     title="Modul Preview"
                     className="w-full flex-1 border-none bg-white"
                   />
-                  {/* Bottom helper bar for PDF in case browser sandboxes PDF embeds */}
+                  {/* Bottom helper bar for PDF */}
                   <div className="bg-white border-t-2 border-black p-2.5 px-3 flex items-center justify-between text-xs font-black">
                     <span className="text-black/80 truncate max-w-[220px]">
-                      📄 {student.moduleFileName || 'Modul Pembelajaran'}
+                      📄 {displayPdfFileName}
                     </span>
                     <a
-                      href={activeModuleUrl}
+                      href={resolvedPdfDownloadUrl || resolvedPdfEmbedUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-black bg-[#FFE600] hover:bg-yellow-300 px-2 py-0.5 border border-black flex items-center gap-1 text-xs font-black"
+                      className="text-black bg-[#FFE600] hover:bg-yellow-300 px-2 py-0.5 border border-black flex items-center gap-1 text-xs font-black cursor-pointer"
                     >
                       <span>Buka di Tab Baru ↗</span>
                     </a>
                   </div>
+                </div>
+              ) : isPdfDeadBlob ? (
+                <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-[#FFFDF0]">
+                  <div className="text-4xl mb-2">📑</div>
+                  <div className="font-black text-sm text-black">Modul Memerlukan Tautan Cloud</div>
+                  <p className="text-xs text-black/70 mt-2 max-w-xs leading-relaxed font-bold">
+                    File ini sebelumnya diunggah secara lokal di browser guru. Agar dapat dibuka oleh siswa dari perangkat lain, silakan masukkan <strong>Link Google Drive</strong> (setel: "Siapa saja yang memiliki link") melalui Panel Admin.
+                  </p>
+                  <button
+                    onClick={onOpenAdmin}
+                    className="mt-3 px-3 py-1.5 bg-[#FFE600] hover:bg-yellow-300 text-black border-2 border-black font-black text-xs neo-shadow-sm neo-btn cursor-pointer"
+                  >
+                    Buka Panel Admin Guru 🔑
+                  </button>
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-[#FFFDF0]">
@@ -368,7 +422,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 <span>Pratinjau Proyek Scratch (.sb3)</span>
               </span>
               <a
-                href={turboWarpEditorUrl}
+                href={sb3Info.editorUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="bg-[#FFE600] hover:bg-yellow-300 text-black px-2.5 py-1 border border-black neo-shadow-sm neo-btn flex items-center gap-1 font-black text-xs"
@@ -378,9 +432,27 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </a>
             </div>
 
+            {/* Instruction Banner if file needs drag & drop */}
+            {!sb3Info.isDirectEmbeddable && (
+              <div className="bg-[#FFF59D] border-b-2 border-black p-2 px-3 text-[11px] font-bold text-black flex items-center justify-between gap-2">
+                <span className="truncate">
+                  💡 <strong>Cara Main:</strong> Klik "Unduh .sb3" lalu <strong>seret (drag & drop)</strong> filenya ke layar di bawah!
+                </span>
+                {resolvedSb3DownloadUrl && (
+                  <a
+                    href={resolvedSb3DownloadUrl}
+                    download={displaySb3FileName}
+                    className="bg-black text-white hover:bg-neutral-800 px-2 py-0.5 border border-black text-[10px] font-black shrink-0"
+                  >
+                    ⬇️ Unduh .sb3
+                  </a>
+                )}
+              </div>
+            )}
+
             <div className="flex-1 bg-neutral-900 relative overflow-hidden">
               <iframe
-                src={turboWarpEmbedUrl}
+                src={sb3Info.embedUrl}
                 title="Scratch Runner Embed"
                 allow="fullscreen; autoplay; gamepad; camera; microphone"
                 className="w-full h-full border-none bg-neutral-900"
@@ -389,23 +461,21 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
             {/* Quick Actions Bar below TurboWarp Runner */}
             <div className="bg-[#FFFDF0] border-t-2 border-black p-2.5 px-3 flex flex-wrap items-center justify-between gap-2 text-xs font-black">
-              <span className="text-black/80">
-                {hasPublicHttpSb3 
-                  ? 'Proyek Scratch (.sb3) terhubung langsung ke TurboWarp ⚡' 
-                  : 'Proyek Scratch (.sb3) siap dimainkan & diedit di TurboWarp!'}
+              <span className="text-black/80 truncate max-w-[240px]">
+                {sb3Info.hint || 'Proyek Scratch (.sb3) siap dimainkan & diedit di TurboWarp!'}
               </span>
               <div className="flex items-center gap-2">
-                {activeSb3Url && (
+                {resolvedSb3DownloadUrl && (
                   <a
-                    href={activeSb3Url}
-                    download={student.sb3FileName || `Proyek_${student.studentName}.sb3`}
-                    className="bg-white hover:bg-neutral-100 px-2.5 py-1 border border-black text-xs font-black flex items-center gap-1 neo-shadow-sm neo-btn"
+                    href={resolvedSb3DownloadUrl}
+                    download={displaySb3FileName}
+                    className="bg-white hover:bg-neutral-100 px-2.5 py-1 border border-black text-xs font-black flex items-center gap-1 neo-shadow-sm neo-btn cursor-pointer"
                   >
                     <span>⬇️ Unduh .sb3</span>
                   </a>
                 )}
                 <a
-                  href={turboWarpEditorUrl}
+                  href={sb3Info.editorUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="bg-[#FFE600] hover:bg-yellow-300 text-black px-2.5 py-1 border border-black text-xs font-black flex items-center gap-1 neo-shadow-sm neo-btn"
@@ -423,17 +493,17 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       <PdfViewerModal
         isOpen={showPdfModal}
         onClose={() => setShowPdfModal(false)}
-        pdfUrl={activeModuleUrl}
+        pdfUrl={resolvedPdfEmbedUrl || student.moduleUrl || ''}
         studentName={student.studentName}
-        fileName={student.moduleFileName}
+        fileName={displayPdfFileName}
       />
 
       <ScratchViewerModal
         isOpen={showScratchModal}
         onClose={() => setShowScratchModal(false)}
-        sb3Url={activeSb3Url}
+        sb3Url={resolvedSb3DownloadUrl || student.sb3FileUrl || ''}
         studentName={student.studentName}
-        fileName={student.sb3FileName}
+        fileName={displaySb3FileName}
         competitionIdea={student.competitionIdea}
       />
 
