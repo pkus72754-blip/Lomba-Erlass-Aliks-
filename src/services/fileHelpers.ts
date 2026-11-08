@@ -102,10 +102,10 @@ export function parseScratchUrl(url?: string): ScratchUrlInfo {
       : trimmed;
 
     // Direct CORS-enabled proxy URL for TurboWarp
-    // Uses universal proxy so TurboWarp can fetch the raw .sb3 from Google Drive seamlessly
+    // We append #project.sb3 to the URL so TurboWarp's parser recognizes the file as a Scratch 3 project instead of a generic zip
     const gDriveDownload = fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : trimmed;
     const corsProxyUrl = fileId 
-      ? `https://corsproxy.io/?${encodeURIComponent(gDriveDownload)}`
+      ? `https://corsproxy.io/?${encodeURIComponent(gDriveDownload)}#project.sb3`
       : '';
 
     const embedUrl = corsProxyUrl
@@ -263,3 +263,60 @@ export function parsePdfUrl(url?: string): PdfUrlInfo {
     isDataUrl: false
   };
 }
+
+/**
+ * Downloads an .sb3 file ensuring the file is NEVER saved as a .zip file.
+ * Solves the issue where Google Drive labels .sb3 files as ZIP archives.
+ */
+export async function downloadSb3File(url: string, rawFileName: string): Promise<void> {
+  const cleanName = rawFileName.replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
+
+  // 1. If it's a local Blob or Base64 Data URL, download directly as .sb3
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = cleanName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+
+  // 2. If it's a Google Drive link, download via proxy or fetch as Blob to enforce .sb3 extension
+  try {
+    let fetchUrl = url;
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const fileId = match ? match[1] : '';
+      if (fileId) {
+        fetchUrl = `/api/sb3-proxy?id=${fileId}&name=${encodeURIComponent(cleanName)}`;
+      }
+    }
+
+    const response = await fetch(fetchUrl);
+    if (!response.ok) throw new Error('Fetch via proxy failed');
+    const blob = await response.blob();
+    // Force Scratch .sb3 MIME type so the OS/browser saves it with .sb3
+    const forcedBlob = new Blob([blob], { type: 'application/x.scratch.sb3' });
+    const localBlobUrl = URL.createObjectURL(forcedBlob);
+
+    const a = document.createElement('a');
+    a.href = localBlobUrl;
+    a.download = cleanName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(localBlobUrl), 10000);
+  } catch (err) {
+    console.warn('Fallback direct download for sb3:', err);
+    // Fallback: direct browser trigger
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = cleanName;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+

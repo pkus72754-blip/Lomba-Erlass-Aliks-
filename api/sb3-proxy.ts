@@ -1,7 +1,8 @@
 /**
  * Vercel Serverless Function & Proxy for Google Drive Scratch (.sb3) files.
  * Fetches the binary .sb3 from Google Drive and streams it with permissive CORS
- * so TurboWarp (turbowarp.org) can load and run the Scratch project directly.
+ * and explicit Scratch MIME types so Google Drive doesn't force .zip extension
+ * and TurboWarp (turbowarp.org) can load and run the Scratch project directly.
  */
 
 export default async function handler(req: any, res: any) {
@@ -28,8 +29,16 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: 'Missing Google Drive file ID parameter (?id=...)' });
   }
 
+  // Clean filename so it always ends with .sb3, never .zip
+  let cleanName = 'project.sb3';
+  if (query.name) {
+    cleanName = String(query.name).replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
+  } else if (fileId) {
+    cleanName = `proyek_${fileId}.sb3`;
+  }
+
   try {
-    // 1. First attempt: Direct download endpoint
+    // 1. Direct download endpoint from Google Drive
     const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
     let response = await fetch(directUrl, {
       redirect: 'follow',
@@ -38,7 +47,7 @@ export default async function handler(req: any, res: any) {
       }
     });
 
-    // Check if Google Drive returned an HTML virus scan confirmation page
+    // Check if Google Drive returned an HTML virus scan confirmation page for larger files
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('text/html')) {
       const htmlText = await response.text();
@@ -70,8 +79,10 @@ export default async function handler(req: any, res: any) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // CRITICAL: Force Scratch .sb3 MIME type and filename so it is never treated as a plain .zip
     res.setHeader('Content-Type', 'application/x.scratch.sb3');
-    res.setHeader('Content-Disposition', `attachment; filename="project_${fileId}.sb3"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${cleanName}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     return res.status(200).send(buffer);
   } catch (error: any) {

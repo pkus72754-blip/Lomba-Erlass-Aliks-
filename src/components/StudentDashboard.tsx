@@ -23,7 +23,8 @@ import { ScratchViewerModal } from './ScratchViewerModal';
 import { 
   parseScratchUrl, 
   parsePdfUrl, 
-  base64ToBlob 
+  base64ToBlob,
+  downloadSb3File 
 } from '../services/fileHelpers';
 import { getFreshBlobUrl } from '../services/dbStorage';
 
@@ -434,14 +435,25 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
             {/* Status Banner for Google Drive or Drag & Drop */}
             {sb3Info.type === 'google_drive' ? (
-              <div className="bg-[#FFF59D] border-b-2 border-black p-2 px-3 text-[11px] font-bold text-black flex flex-wrap items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#35E88E] border border-black animate-pulse"></span>
+              <div className="bg-[#FFF59D] border-b-2 border-black p-2.5 px-3 text-[11px] font-bold text-black flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#35E88E] border border-black animate-pulse shrink-0"></span>
                   <span>Tersambung ke Google Drive! Proyek sedang dimuat langsung di TurboWarp ⚡</span>
-                </span>
-                <span className="text-[10px] text-black/70">
-                  (Pastikan izin file Google Drive: <em>"Siapa saja yang memiliki link"</em>)
-                </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-black/70">
+                    (Jika Drive menamai file sebagai .zip, jangan ekstrak! Gunakan tombol Unduh di sini)
+                  </span>
+                  {resolvedSb3DownloadUrl && (
+                    <button
+                      type="button"
+                      onClick={() => downloadSb3File(resolvedSb3DownloadUrl, displaySb3FileName)}
+                      className="bg-black hover:bg-neutral-800 text-white px-2 py-0.5 border border-black text-[10px] font-black neo-btn cursor-pointer shrink-0"
+                    >
+                      ⬇️ Unduh .sb3 Resmi
+                    </button>
+                  )}
+                </div>
               </div>
             ) : !sb3Info.isDirectEmbeddable ? (
               <div className="bg-[#FFF59D] border-b-2 border-black p-2 px-3 text-[11px] font-bold text-black flex items-center justify-between gap-2">
@@ -449,13 +461,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   💡 <strong>Cara Main:</strong> Klik "Unduh .sb3" lalu <strong>seret (drag & drop)</strong> filenya ke layar di bawah!
                 </span>
                 {resolvedSb3DownloadUrl && (
-                  <a
-                    href={resolvedSb3DownloadUrl}
-                    download={displaySb3FileName}
-                    className="bg-black text-white hover:bg-neutral-800 px-2 py-0.5 border border-black text-[10px] font-black shrink-0"
+                  <button
+                    type="button"
+                    onClick={() => downloadSb3File(resolvedSb3DownloadUrl, displaySb3FileName)}
+                    className="bg-black text-white hover:bg-neutral-800 px-2 py-0.5 border border-black text-[10px] font-black shrink-0 cursor-pointer"
                   >
                     ⬇️ Unduh .sb3
-                  </a>
+                  </button>
                 )}
               </div>
             ) : null}
@@ -471,18 +483,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
             {/* Quick Actions Bar below TurboWarp Runner */}
             <div className="bg-[#FFFDF0] border-t-2 border-black p-2.5 px-3 flex flex-wrap items-center justify-between gap-2 text-xs font-black">
-              <span className="text-black/80 truncate max-w-[240px]">
+              <span className="text-black/80 truncate max-w-[260px]">
                 {sb3Info.hint || 'Proyek Scratch (.sb3) siap dimainkan & diedit di TurboWarp!'}
               </span>
               <div className="flex items-center gap-2">
                 {resolvedSb3DownloadUrl && (
-                  <a
-                    href={resolvedSb3DownloadUrl}
-                    download={displaySb3FileName}
+                  <button
+                    type="button"
+                    onClick={() => downloadSb3File(resolvedSb3DownloadUrl, displaySb3FileName)}
                     className="bg-white hover:bg-neutral-100 px-2.5 py-1 border border-black text-xs font-black flex items-center gap-1 neo-shadow-sm neo-btn cursor-pointer"
                   >
                     <span>⬇️ Unduh .sb3</span>
-                  </a>
+                  </button>
                 )}
                 <a
                   href={sb3Info.editorUrl}

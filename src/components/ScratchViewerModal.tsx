@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Play, Download, ExternalLink, HelpCircle, Code2, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
-import { parseScratchUrl } from '../services/fileHelpers';
+import { parseScratchUrl, downloadSb3File } from '../services/fileHelpers';
 
 interface ScratchViewerModalProps {
   isOpen: boolean;
@@ -54,16 +54,14 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
 
           <div className="flex items-center gap-2">
             {effectiveDownloadUrl && (
-              <a
-                href={effectiveDownloadUrl}
-                download={displayFileName}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => downloadSb3File(effectiveDownloadUrl, displayFileName)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
               >
                 <Download className="w-4 h-4" />
-                <span>Unduh .SB3</span>
-              </a>
+                <span>Unduh .SB3 Resmi</span>
+              </button>
             )}
             <a
               href={sb3Info.editorUrl}
@@ -106,37 +104,45 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
           </button>
 
           {showInstructions && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t-2 border-black/20 text-xs font-bold text-black">
-              <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
-                <div className="flex items-center gap-2 font-black text-black mb-1">
-                  <span className="w-5 h-5 bg-[#FF6B97] text-white flex items-center justify-center rounded-none border border-black text-xs">1</span>
-                  <span>Unduh File .SB3</span>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t-2 border-black/20 text-xs font-bold text-black">
+                <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
+                  <div className="flex items-center gap-2 font-black text-black mb-1">
+                    <span className="w-5 h-5 bg-[#FF6B97] text-white flex items-center justify-center rounded-none border border-black text-xs">1</span>
+                    <span>Unduh File .SB3</span>
+                  </div>
+                  <p className="text-black/80">
+                    Klik tombol <strong>"Unduh .SB3"</strong> di atas untuk menyimpan file koding ke komputermu.
+                  </p>
                 </div>
-                <p className="text-black/80">
-                  Klik tombol <strong>"Unduh .SB3"</strong> di atas untuk menyimpan file koding ke komputermu.
-                </p>
+
+                <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
+                  <div className="flex items-center gap-2 font-black text-black mb-1">
+                    <span className="w-5 h-5 bg-[#38BDF8] text-black flex items-center justify-center rounded-none border border-black text-xs">2</span>
+                    <span>Buka TurboWarp / Scratch</span>
+                  </div>
+                  <p className="text-black/80">
+                    Klik tombol <strong>"Buka di TurboWarp ⚡"</strong> untuk membuka editor koding di tab baru.
+                  </p>
+                </div>
+
+                <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
+                  <div className="flex items-center gap-2 font-black text-black mb-1">
+                    <span className="w-5 h-5 bg-[#35E88E] text-black flex items-center justify-center rounded-none border border-black text-xs">3</span>
+                    <span>Muat File (Load)</span>
+                  </div>
+                  <p className="text-black/80">
+                    Di editor, klik menu <strong>File &gt; Muat dari komputermu</strong> atau cukup seret (drag & drop) file .sb3 ke layar!
+                  </p>
+                </div>
               </div>
 
-              <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
-                <div className="flex items-center gap-2 font-black text-black mb-1">
-                  <span className="w-5 h-5 bg-[#38BDF8] text-black flex items-center justify-center rounded-none border border-black text-xs">2</span>
-                  <span>Buka TurboWarp / Scratch</span>
-                </div>
-                <p className="text-black/80">
-                  Klik tombol <strong>"Buka di TurboWarp ⚡"</strong> untuk membuka editor koding di tab baru.
-                </p>
+              {/* Note about Google Drive .zip vs .sb3 */}
+              <div className="mt-3 bg-[#FFFDF0] p-2.5 border-2 border-black text-[11px] font-bold text-black flex items-center gap-2">
+                <span className="bg-[#FFE600] px-2 py-0.5 border border-black font-black text-[10px] shrink-0">PENTING</span>
+                <span>File Scratch (.sb3) secara teknis berformat arsip sehingga Google Drive terkadang melabelinya sebagai <strong>.zip</strong>. <u>Jangan diekstrak!</u> Tombol di atas otomatis menyimpannya dengan format <strong>.sb3</strong> yang benar.</span>
               </div>
-
-              <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
-                <div className="flex items-center gap-2 font-black text-black mb-1">
-                  <span className="w-5 h-5 bg-[#35E88E] text-black flex items-center justify-center rounded-none border border-black text-xs">3</span>
-                  <span>Muat File (Load)</span>
-                </div>
-                <p className="text-black/80">
-                  Di editor, klik menu <strong>File &gt; Muat dari komputermu</strong> atau cukup seret (drag & drop) file .sb3 ke layar!
-                </p>
-              </div>
-            </div>
+            </>
           )}
         </div>
 
