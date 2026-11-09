@@ -12,6 +12,9 @@ export interface ScratchUrlInfo {
   embedUrl: string;
   editorUrl: string;
   fullPageUrl: string;
+  turboWarpUrl: string;
+  scratchMitUrl: string;
+  scratchMitEditorUrl: string;
   downloadUrl?: string;
   scratchId?: string;
   isDirectEmbeddable: boolean;
@@ -29,24 +32,17 @@ export interface ParseScratchOptions {
  */
 export function getSb3ProjectApiUrl(studentId: string, fileName?: string): string {
   const cleanName = (fileName || 'project.sb3').replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
-  if (typeof window !== 'undefined') {
-    const isHttps = window.location.protocol === 'https:';
-    // If running in HTTPS (Vercel / Cloud preview), use current origin.
-    // If running on HTTP localhost, use production Vercel URL so TurboWarp (HTTPS) won't block mixed content!
-    const base = isHttps ? window.location.origin : 'https://lomba-erlass-aliks.vercel.app';
-    return `${base}/api/sb3-project?id=${encodeURIComponent(studentId)}&file=${encodeURIComponent(cleanName)}`;
-  }
-  return `https://lomba-erlass-aliks.vercel.app/api/sb3-project?id=${encodeURIComponent(studentId)}&file=${encodeURIComponent(cleanName)}`;
+  // IMPORTANT: TurboWarp (running cross-origin on turbowarp.org) MUST fetch from the public Vercel production deployment.
+  // AI Studio preview domains (*.run.app) require Google session cookies and cause TurboWarp to crash with 302 redirects.
+  // Both environments connect to the exact same Firestore database ('eskul-coding-aliks').
+  const base = 'https://lomba-erlass-aliks.vercel.app';
+  return `${base}/api/sb3-project?id=${encodeURIComponent(studentId)}&file=${encodeURIComponent(cleanName)}`;
 }
 
 export function getSb3DriveApiUrl(driveFileId: string, fileName?: string): string {
   const cleanName = (fileName || 'project.sb3').replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
-  if (typeof window !== 'undefined') {
-    const isHttps = window.location.protocol === 'https:';
-    const base = isHttps ? window.location.origin : 'https://lomba-erlass-aliks.vercel.app';
-    return `${base}/api/sb3-project?driveId=${encodeURIComponent(driveFileId)}&file=${encodeURIComponent(cleanName)}`;
-  }
-  return `https://lomba-erlass-aliks.vercel.app/api/sb3-project?driveId=${encodeURIComponent(driveFileId)}&file=${encodeURIComponent(cleanName)}`;
+  const base = 'https://lomba-erlass-aliks.vercel.app';
+  return `${base}/api/sb3-project?driveId=${encodeURIComponent(driveFileId)}&file=${encodeURIComponent(cleanName)}`;
 }
 
 export interface PdfUrlInfo {
@@ -98,7 +94,6 @@ export function parseScratchUrl(url?: string, options?: ParseScratchOptions): Sc
   const trimmed = (url || '').trim();
 
   // 1. Check if input is a Scratch Project ID or Scratch/TurboWarp URL
-  // Matches: 12345678, https://scratch.mit.edu/projects/12345678/, https://turbowarp.org/12345678
   const idMatch = trimmed.match(/(?:scratch\.mit\.edu\/projects\/|turbowarp\.org\/|^)(\d{6,14})/i);
   if (idMatch && idMatch[1]) {
     const id = idMatch[1];
@@ -108,9 +103,12 @@ export function parseScratchUrl(url?: string, options?: ParseScratchOptions): Sc
       embedUrl: `https://turbowarp.org/embed.html#${id}`,
       editorUrl: `https://turbowarp.org/editor#${id}`,
       fullPageUrl: `https://turbowarp.org/fullscreen.html#${id}`,
+      turboWarpUrl: `https://turbowarp.org/#${id}`,
+      scratchMitUrl: `https://scratch.mit.edu/projects/${id}/`,
+      scratchMitEditorUrl: `https://scratch.mit.edu/projects/${id}/editor/`,
       downloadUrl: `https://projects.scratch.mit.edu/${id}`,
       isDirectEmbeddable: true,
-      hint: `Proyek Scratch ID #${id} langsung terhubung dan siap dimainkan di TurboWarp ⚡`
+      hint: `Proyek Scratch ID #${id} langsung terhubung dan siap dimainkan di TurboWarp & Scratch MIT 🐱`
     };
   }
 
@@ -126,9 +124,12 @@ export function parseScratchUrl(url?: string, options?: ParseScratchOptions): Sc
       embedUrl: `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(projectApiUrl)}`,
       editorUrl: `https://turbowarp.org/editor?project_url=${encodeURIComponent(projectApiUrl)}`,
       fullPageUrl: `https://turbowarp.org/fullscreen.html?project_url=${encodeURIComponent(projectApiUrl)}`,
+      turboWarpUrl: `https://turbowarp.org/?project_url=${encodeURIComponent(projectApiUrl)}`,
+      scratchMitUrl: 'https://scratch.mit.edu/projects/editor/',
+      scratchMitEditorUrl: 'https://scratch.mit.edu/projects/editor/',
       downloadUrl: trimmed.startsWith('data:') || trimmed.startsWith('blob:') ? trimmed : projectApiUrl,
       isDirectEmbeddable: true,
-      hint: `Proyek Scratch (.sb3) "${cleanFileName}" dimuat langsung ke TurboWarp ⚡`
+      hint: `Proyek Scratch (.sb3) "${cleanFileName}" dimuat langsung ke TurboWarp. Bisa juga dibuka di Scratch MIT (File > Muat dari komputermu) 🐱`
     };
   }
 
@@ -147,10 +148,13 @@ export function parseScratchUrl(url?: string, options?: ParseScratchOptions): Sc
         embedUrl: `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(projectApiUrl)}`,
         editorUrl: `https://turbowarp.org/editor?project_url=${encodeURIComponent(projectApiUrl)}`,
         fullPageUrl: `https://turbowarp.org/fullscreen.html?project_url=${encodeURIComponent(projectApiUrl)}`,
+        turboWarpUrl: `https://turbowarp.org/?project_url=${encodeURIComponent(projectApiUrl)}`,
+        scratchMitUrl: 'https://scratch.mit.edu/projects/editor/',
+        scratchMitEditorUrl: 'https://scratch.mit.edu/projects/editor/',
         downloadUrl: projectApiUrl,
         scratchId: fileId,
         isDirectEmbeddable: true,
-        hint: 'Proyek Scratch (.sb3) dari Google Drive dimuat langsung ke TurboWarp ⚡'
+        hint: 'Proyek Scratch (.sb3) dari Google Drive dimuat ke TurboWarp & bisa dibuka di Scratch Resmi MIT 🐱'
       };
     }
   }
@@ -162,9 +166,12 @@ export function parseScratchUrl(url?: string, options?: ParseScratchOptions): Sc
       embedUrl: `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(trimmed)}`,
       editorUrl: `https://turbowarp.org/editor?project_url=${encodeURIComponent(trimmed)}`,
       fullPageUrl: `https://turbowarp.org/fullscreen.html?project_url=${encodeURIComponent(trimmed)}`,
+      turboWarpUrl: `https://turbowarp.org/?project_url=${encodeURIComponent(trimmed)}`,
+      scratchMitUrl: 'https://scratch.mit.edu/projects/editor/',
+      scratchMitEditorUrl: 'https://scratch.mit.edu/projects/editor/',
       downloadUrl: trimmed,
       isDirectEmbeddable: true,
-      hint: 'Proyek .sb3 tersambung langsung ke TurboWarp ⚡'
+      hint: 'Proyek .sb3 tersambung langsung ke TurboWarp & bisa dibuka di Scratch Resmi MIT 🐱'
     };
   }
 
@@ -175,9 +182,12 @@ export function parseScratchUrl(url?: string, options?: ParseScratchOptions): Sc
       embedUrl: 'https://turbowarp.org/embed.html',
       editorUrl: 'https://turbowarp.org/editor',
       fullPageUrl: 'https://turbowarp.org/fullscreen.html',
+      turboWarpUrl: 'https://turbowarp.org/',
+      scratchMitUrl: 'https://scratch.mit.edu/projects/editor/',
+      scratchMitEditorUrl: 'https://scratch.mit.edu/projects/editor/',
       downloadUrl: trimmed,
       isDirectEmbeddable: false,
-      hint: 'File .sb3 tersimpan di database. Klik Unduh .sb3 untuk memainkannya di TurboWarp!'
+      hint: 'File .sb3 tersimpan di database. Klik Unduh .sb3 untuk memainkannya di TurboWarp atau Scratch MIT!'
     };
   }
 
@@ -186,6 +196,9 @@ export function parseScratchUrl(url?: string, options?: ParseScratchOptions): Sc
     embedUrl: 'https://turbowarp.org/embed.html',
     editorUrl: 'https://turbowarp.org/editor',
     fullPageUrl: 'https://turbowarp.org/fullscreen.html',
+    turboWarpUrl: 'https://turbowarp.org/',
+    scratchMitUrl: 'https://scratch.mit.edu',
+    scratchMitEditorUrl: 'https://scratch.mit.edu/projects/editor/',
     isDirectEmbeddable: false
   };
 }

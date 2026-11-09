@@ -57,7 +57,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {effectiveDownloadUrl && (
               <button
                 type="button"
@@ -69,7 +69,17 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
               </button>
             )}
             <a
-              href={sb3Info.fullPageUrl || sb3Info.editorUrl}
+              href={sb3Info.scratchMitUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFAB19] hover:bg-[#ff9900] text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
+              title="Buka proyek di situs resmi Scratch (scratch.mit.edu)"
+            >
+              <span>🐱 Scratch MIT Resmi</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+            <a
+              href={sb3Info.turboWarpUrl || sb3Info.fullPageUrl || sb3Info.editorUrl}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
@@ -103,7 +113,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
           >
             <div className="flex items-center gap-2 font-black text-xs sm:text-sm text-black">
               <span className="bg-black text-[#35E88E] px-2 py-0.5 border border-black text-xs">PANDUAN SISWA</span>
-              <span>3 Langkah Mudah Membuka File SB3 di TurboWarp / Scratch (Klik untuk {showInstructions ? 'tutup' : 'baca'})</span>
+              <span>Panduan Membuka di Scratch Resmi MIT & TurboWarp (Klik untuk {showInstructions ? 'tutup' : 'baca'})</span>
             </div>
             {showInstructions ? <ChevronUp className="w-5 h-5 text-black" /> : <ChevronDown className="w-5 h-5 text-black" />}
           </button>
@@ -117,27 +127,27 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
                     <span>Unduh File .SB3</span>
                   </div>
                   <p className="text-black/80">
-                    Klik tombol <strong>"Unduh .SB3"</strong> di atas untuk menyimpan file koding ke komputermu.
+                    Klik tombol <strong>"Unduh .SB3 Resmi"</strong> di atas untuk menyimpan file koding ke komputer/laptopmu.
                   </p>
                 </div>
 
                 <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
                   <div className="flex items-center gap-2 font-black text-black mb-1">
-                    <span className="w-5 h-5 bg-[#38BDF8] text-black flex items-center justify-center rounded-none border border-black text-xs">2</span>
-                    <span>Buka TurboWarp / Scratch</span>
+                    <span className="w-5 h-5 bg-[#FFAB19] text-black flex items-center justify-center rounded-none border border-black text-xs">2</span>
+                    <span>Buka Scratch MIT / TurboWarp</span>
                   </div>
                   <p className="text-black/80">
-                    Klik tombol <strong>"Buka di TurboWarp ⚡"</strong> untuk membuka editor koding di tab baru.
+                    Klik <strong>"🐱 Scratch MIT Resmi"</strong> untuk membuka situs resmi Scratch, atau <strong>"TurboWarp ⚡"</strong> untuk main instan.
                   </p>
                 </div>
 
                 <div className="bg-white p-3 border-2 border-black neo-shadow-sm">
                   <div className="flex items-center gap-2 font-black text-black mb-1">
                     <span className="w-5 h-5 bg-[#35E88E] text-black flex items-center justify-center rounded-none border border-black text-xs">3</span>
-                    <span>Muat File (Load)</span>
+                    <span>Muat File di Scratch MIT</span>
                   </div>
                   <p className="text-black/80">
-                    Di editor, klik menu <strong>File &gt; Muat dari komputermu</strong> atau cukup seret (drag & drop) file .sb3 ke layar!
+                    Di editor Scratch MIT, klik menu <strong>Berkas &gt; "Muat dari komputermu"</strong>, lalu pilih file .sb3 yang baru saja kamu unduh!
                   </p>
                 </div>
               </div>
@@ -145,7 +155,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
               {/* Note about Google Drive .zip vs .sb3 */}
               <div className="mt-3 bg-[#FFFDF0] p-2.5 border-2 border-black text-[11px] font-bold text-black flex items-center gap-2">
                 <span className="bg-[#FFE600] px-2 py-0.5 border border-black font-black text-[10px] shrink-0">PENTING</span>
-                <span>File Scratch (.sb3) secara teknis berformat arsip sehingga Google Drive terkadang melabelinya sebagai <strong>.zip</strong>. <u>Jangan diekstrak!</u> Tombol di atas otomatis menyimpannya dengan format <strong>.sb3</strong> yang benar.</span>
+                <span>File Scratch (.sb3) secara teknis berformat arsip sehingga Google Drive terkadang melabelinya sebagai <strong>.zip</strong>. <u>Jangan diekstrak!</u> Tombol di atas otomatis menyimpannya dengan ekstensi <strong>.sb3</strong> yang siap dimuat ke Scratch MIT.</span>
               </div>
             </>
           )}
@@ -156,25 +166,37 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
           <iframe
             src={sb3Info.embedUrl}
             title="Scratch Runner Embed"
-            allow="fullscreen; autoplay; gamepad; camera; microphone"
+            allow="fullscreen; autoplay; gamepad; camera; microphone; clipboard-read; clipboard-write"
+            allowFullScreen={true}
             className="w-full flex-1 border-none bg-neutral-900"
           />
         </div>
 
         {/* Footer info bar */}
         <div className="bg-[#FFFDF0] border-t-4 border-black p-3 px-4 flex flex-wrap items-center justify-between gap-2 text-xs font-black">
-          <div className="flex items-center gap-2">
-            <span className="bg-[#35E88E] px-2 py-0.5 border border-black text-black">TURBOWARP READY</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bg-[#35E88E] px-2 py-0.5 border border-black text-black">READY</span>
             <span className="text-black/80">
-              {sb3Info.hint || 'TurboWarp adalah runner Scratch 3.0 super cepat dengan kompiler FPS tinggi.'}
+              {sb3Info.hint || 'Proyek Scratch (.sb3) siap dimainkan & dibuka di Scratch MIT atau TurboWarp.'}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-black text-white hover:bg-neutral-800 border-2 border-black neo-shadow-sm ml-auto cursor-pointer"
-          >
-            Tutup Peluncur
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <a
+              href={sb3Info.scratchMitUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 bg-[#FFAB19] hover:bg-[#ff9900] text-black border-2 border-black neo-shadow-sm flex items-center gap-1 font-black text-xs cursor-pointer"
+            >
+              <span>🐱 Buka di Scratch MIT</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 bg-black text-white hover:bg-neutral-800 border-2 border-black neo-shadow-sm cursor-pointer"
+            >
+              Tutup Peluncur
+            </button>
+          </div>
         </div>
 
       </div>

@@ -14,7 +14,8 @@ import {
   FileText,
   AlertCircle,
   Gamepad2,
-  HelpCircle
+  HelpCircle,
+  RotateCcw
 } from 'lucide-react';
 import { Student } from '../types';
 import { fireStudentSuccessConfetti } from './Confetti';
@@ -43,6 +44,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showScratchModal, setShowScratchModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [runnerKey, setRunnerKey] = useState(0);
 
   // Resolved URLs & download links
   const [resolvedPdfEmbedUrl, setResolvedPdfEmbedUrl] = useState<string>('');
@@ -240,7 +242,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
             <a
-              href={sb3Info.fullPageUrl || sb3Info.editorUrl}
+              href={sb3Info.scratchMitUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-5 py-3 bg-[#FFAB19] hover:bg-[#ff9900] text-black font-black text-sm border-3 border-black neo-shadow neo-btn flex items-center justify-center gap-2"
+              title="Buka proyek di situs resmi Scratch (scratch.mit.edu)"
+            >
+              <span className="text-lg">🐱</span>
+              <span>Buka di Scratch Resmi (MIT)</span>
+              <ExternalLink className="w-4 h-4 text-black" />
+            </a>
+            <a
+              href={sb3Info.turboWarpUrl || sb3Info.fullPageUrl || sb3Info.editorUrl}
               target="_blank"
               rel="noreferrer"
               className="px-5 py-3 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-sm border-3 border-black neo-shadow neo-btn flex items-center justify-center gap-2"
@@ -448,32 +461,63 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           {/* Right Embed: Interactive Scratch Runner / TurboWarp Player */}
           <div className="border-3 border-black neo-shadow-sm bg-[#FFFDF0] flex flex-col h-[520px]">
-            <div className="bg-[#38BDF8] border-b-3 border-black p-3 flex items-center justify-between text-xs font-black">
+            <div className="bg-[#38BDF8] border-b-3 border-black p-3 flex flex-wrap items-center justify-between gap-2 text-xs font-black">
               <span className="flex items-center gap-1.5">
                 <Code2 className="w-4 h-4" />
                 <span>Pratinjau Proyek Scratch (.sb3)</span>
               </span>
-              <a
-                href={sb3Info.fullPageUrl || sb3Info.editorUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="bg-[#FFE600] hover:bg-yellow-300 text-black px-2.5 py-1 border border-black neo-shadow-sm neo-btn flex items-center gap-1 font-black text-xs"
-              >
-                <Gamepad2 className="w-3.5 h-3.5" />
-                <span>Buka di TurboWarp ⚡</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setRunnerKey(k => k + 1)}
+                  title="Muat ulang pratinjau game"
+                  className="bg-white hover:bg-neutral-100 text-black px-2 py-1 border border-black neo-shadow-sm neo-btn flex items-center gap-1 font-black text-xs cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Muat Ulang</span>
+                </button>
+                <a
+                  href={sb3Info.scratchMitUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-[#FFAB19] hover:bg-[#ff9900] text-black px-2.5 py-1 border border-black neo-shadow-sm neo-btn flex items-center gap-1 font-black text-xs"
+                  title="Buka proyek di situs resmi Scratch MIT (scratch.mit.edu)"
+                >
+                  <span>🐱 Scratch MIT</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <a
+                  href={sb3Info.turboWarpUrl || sb3Info.fullPageUrl || sb3Info.editorUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-[#FFE600] hover:bg-yellow-300 text-black px-2.5 py-1 border border-black neo-shadow-sm neo-btn flex items-center gap-1 font-black text-xs"
+                  title="Buka proyek di TurboWarp"
+                >
+                  <Gamepad2 className="w-3.5 h-3.5" />
+                  <span>TurboWarp ⚡</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
 
             {/* Status Banner */}
             <div className="bg-[#FFF59D] border-b-2 border-black p-2.5 px-3 text-[11px] font-bold text-black flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#35E88E] border border-black animate-pulse shrink-0"></span>
-                <span>Proyek koding otomatis berjalan di TurboWarp! Klik tombol di samping untuk layar penuh ⚡</span>
+                <span>Proyek koding aktif! Bisa dibuka di TurboWarp, Scratch MIT, atau unduh .sb3 ⚡</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <a
-                  href={sb3Info.fullPageUrl || sb3Info.editorUrl}
+                  href={sb3Info.scratchMitUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-[#FFAB19] hover:bg-[#ff9900] text-black px-2 py-0.5 border border-black text-[10px] font-black neo-btn cursor-pointer shrink-0"
+                  title="Buka situs resmi Scratch MIT"
+                >
+                  🐱 Buka Scratch MIT
+                </a>
+                <a
+                  href={sb3Info.turboWarpUrl || sb3Info.fullPageUrl || sb3Info.editorUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="bg-black hover:bg-neutral-800 text-white px-2 py-0.5 border border-black text-[10px] font-black neo-btn cursor-pointer shrink-0"
@@ -494,19 +538,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
             <div className="flex-1 bg-neutral-900 relative overflow-hidden">
               <iframe
+                key={runnerKey}
                 src={sb3Info.embedUrl}
                 title="Scratch Runner Embed"
-                allow="fullscreen; autoplay; gamepad; camera; microphone"
+                allow="fullscreen; autoplay; gamepad; camera; microphone; clipboard-read; clipboard-write"
+                allowFullScreen={true}
                 className="w-full h-full border-none bg-neutral-900"
               />
             </div>
 
             {/* Quick Actions Bar below TurboWarp Runner */}
             <div className="bg-[#FFFDF0] border-t-2 border-black p-2.5 px-3 flex flex-wrap items-center justify-between gap-2 text-xs font-black">
-              <span className="text-black/80 truncate max-w-[240px]">
-                {sb3Info.hint || 'Proyek Scratch (.sb3) siap dimainkan & diedit di TurboWarp!'}
-              </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-black/80 truncate max-w-[280px]">
+                <span className="bg-[#FFE600] px-1.5 py-0.2 border border-black text-[10px]">TIPS</span>
+                <span className="truncate">{sb3Info.hint || 'Proyek Scratch (.sb3) siap dimainkan!'}</span>
+              </div>
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {student.sb3FileUrl && (
                   <button
                     type="button"
@@ -517,6 +564,16 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     <span>⬇️ Unduh .sb3</span>
                   </button>
                 )}
+                <a
+                  href={sb3Info.scratchMitUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-[#FFAB19] hover:bg-[#ff9900] text-black px-2.5 py-1 border border-black text-xs font-black flex items-center gap-1 neo-shadow-sm neo-btn"
+                  title="Buka di Website Scratch Resmi (scratch.mit.edu)"
+                >
+                  <span>🐱 Scratch MIT</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
                 <a
                   href={sb3Info.editorUrl}
                   target="_blank"
