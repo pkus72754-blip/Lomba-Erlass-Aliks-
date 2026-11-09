@@ -761,10 +761,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             className="w-full px-3 py-1.5 bg-white border border-black font-bold text-xs"
                           />
                           <p className="text-[10px] font-bold text-black/70 mt-1">
-                            💡 Format didukung: File .sb3 (otomatis ke Firestore), Link/ID Scratch resmi, atau Link Google Drive.
+                            💡 Format didukung: Unggah langsung file .sb3 (tersimpan aman ke database), tautan Google Drive, atau ID Scratch resmi.
                           </p>
-                          <p className="text-[10px] font-bold text-red-600 mt-0.5">
-                            ⚠️ Tips Google Drive: Pastikan setelan akses file di Google Drive disetel ke <u>"Siapa saja yang memiliki link"</u> agar proyek Scratch otomatis tampil di TurboWarp!
+                          <p className="text-[10px] font-bold text-black/80 mt-0.5">
+                            ⚡ Otomatis dapat dimainkan di TurboWarp dan diunduh sebagai format resmi <strong>.sb3</strong> (tidak akan menjadi file .zip!).
+                          </p>
+                          <p className="text-[10px] font-bold text-amber-800 mt-0.5">
+                            ⚠️ Jika menggunakan Google Drive: Pastikan izin file disetel ke <u>"Siapa saja yang memiliki link"</u>.
                           </p>
                         </div>
                       </div>

@@ -7,6 +7,7 @@ interface ScratchViewerModalProps {
   onClose: () => void;
   sb3Url: string;
   studentName: string;
+  studentId?: string;
   fileName?: string;
   competitionIdea?: string;
 }
@@ -16,6 +17,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
   onClose,
   sb3Url,
   studentName,
+  studentId,
   fileName,
   competitionIdea
 }) => {
@@ -24,7 +26,11 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
   if (!isOpen) return null;
 
   const displayFileName = fileName || `Proyek_${studentName.replace(/\s+/g, '_')}.sb3`;
-  const sb3Info = parseScratchUrl(sb3Url);
+  const sb3Info = parseScratchUrl(sb3Url, {
+    studentId,
+    fileName: displayFileName,
+    studentName
+  });
   const effectiveDownloadUrl = sb3Info.downloadUrl || sb3Url;
 
   return (
@@ -56,7 +62,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
             {effectiveDownloadUrl && (
               <button
                 type="button"
-                onClick={() => downloadSb3File(effectiveDownloadUrl, displayFileName)}
+                onClick={() => downloadSb3File(effectiveDownloadUrl, displayFileName, studentId)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
               >
                 <Download className="w-4 h-4" />
@@ -64,22 +70,22 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
               </button>
             )}
             <a
-              href={sb3Info.editorUrl}
+              href={sb3Info.fullPageUrl || sb3Info.editorUrl}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
             >
               <ExternalLink className="w-4 h-4" />
-              <span>Buka di TurboWarp ⚡</span>
+              <span>Halaman Utuh TurboWarp ⚡</span>
             </a>
             <a
-              href="https://scratch.mit.edu/projects/editor/"
+              href={sb3Info.editorUrl}
               target="_blank"
               rel="noreferrer"
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#FF6B97] hover:bg-pink-500 text-white font-black text-xs border-2 border-black neo-shadow-sm neo-btn"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-neutral-100 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
             >
-              <ExternalLink className="w-4 h-4" />
-              <span>Scratch MIT</span>
+              <Code2 className="w-4 h-4" />
+              <span>Editor Blok</span>
             </a>
             <button
               onClick={onClose}

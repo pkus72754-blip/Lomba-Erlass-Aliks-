@@ -11,10 +11,42 @@ export interface ScratchUrlInfo {
   type: 'scratch_id' | 'direct_sb3' | 'google_drive' | 'data_url' | 'blob_url' | 'empty';
   embedUrl: string;
   editorUrl: string;
+  fullPageUrl: string;
   downloadUrl?: string;
   scratchId?: string;
   isDirectEmbeddable: boolean;
   hint?: string;
+}
+
+export interface ParseScratchOptions {
+  studentId?: string;
+  fileName?: string;
+  studentName?: string;
+}
+
+/**
+ * Generates the clean CORS-enabled project API URL that streams the .sb3 binary
+ */
+export function getSb3ProjectApiUrl(studentId: string, fileName?: string): string {
+  const cleanName = (fileName || 'project.sb3').replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
+  if (typeof window !== 'undefined') {
+    const isHttps = window.location.protocol === 'https:';
+    // If running in HTTPS (Vercel / Cloud preview), use current origin.
+    // If running on HTTP localhost, use production Vercel URL so TurboWarp (HTTPS) won't block mixed content!
+    const base = isHttps ? window.location.origin : 'https://lomba-erlass-aliks.vercel.app';
+    return `${base}/api/sb3-project?id=${encodeURIComponent(studentId)}&file=${encodeURIComponent(cleanName)}`;
+  }
+  return `https://lomba-erlass-aliks.vercel.app/api/sb3-project?id=${encodeURIComponent(studentId)}&file=${encodeURIComponent(cleanName)}`;
+}
+
+export function getSb3DriveApiUrl(driveFileId: string, fileName?: string): string {
+  const cleanName = (fileName || 'project.sb3').replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
+  if (typeof window !== 'undefined') {
+    const isHttps = window.location.protocol === 'https:';
+    const base = isHttps ? window.location.origin : 'https://lomba-erlass-aliks.vercel.app';
+    return `${base}/api/sb3-project?driveId=${encodeURIComponent(driveFileId)}&file=${encodeURIComponent(cleanName)}`;
+  }
+  return `https://lomba-erlass-aliks.vercel.app/api/sb3-project?driveId=${encodeURIComponent(driveFileId)}&file=${encodeURIComponent(cleanName)}`;
 }
 
 export interface PdfUrlInfo {
@@ -62,17 +94,8 @@ export function base64ToBlob(base64Data: string, fallbackMime = 'application/oct
 /**
  * Parse and resolve any Scratch project input (Scratch URL, ID, Direct SB3, Google Drive, Data URL)
  */
-export function parseScratchUrl(url?: string): ScratchUrlInfo {
-  if (!url || !url.trim()) {
-    return {
-      type: 'empty',
-      embedUrl: 'https://turbowarp.org/embed.html',
-      editorUrl: 'https://turbowarp.org/editor',
-      isDirectEmbeddable: false
-    };
-  }
-
-  const trimmed = url.trim();
+export function parseScratchUrl(url?: string, options?: ParseScratchOptions): ScratchUrlInfo {
+  const trimmed = (url || '').trim();
 
   // 1. Check if input is a Scratch Project ID or Scratch/TurboWarp URL
   // Matches: 12345678, https://scratch.mit.edu/projects/12345678/, https://turbowarp.org/12345678
@@ -84,82 +107,77 @@ export function parseScratchUrl(url?: string): ScratchUrlInfo {
       scratchId: id,
       embedUrl: `https://turbowarp.org/embed.html#${id}`,
       editorUrl: `https://turbowarp.org/editor#${id}`,
+      fullPageUrl: `https://turbowarp.org/fullscreen.html#${id}`,
       downloadUrl: `https://projects.scratch.mit.edu/${id}`,
       isDirectEmbeddable: true,
-      hint: `Proyek Scratch ID #${id} langsung terhubung dan siap dimainkan di TurboWarp!`
+      hint: `Proyek Scratch ID #${id} langsung terhubung dan siap dimainkan di TurboWarp ⚡`
     };
   }
 
-  // 2. Google Drive Link
+  // 2. If studentId is provided, route directly through /api/sb3-project
+  // This supports direct upload in Firestore (Base64) & Google Drive links without CORS or ZIP problems!
+  if (options?.studentId && trimmed) {
+    const projectApiUrl = getSb3ProjectApiUrl(options.studentId, options.fileName);
+    const cleanFileName = (options.fileName || 'project.sb3').replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
+    const isDrive = trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com');
+
+    return {
+      type: isDrive ? 'google_drive' : (trimmed.startsWith('data:') ? 'data_url' : 'direct_sb3'),
+      embedUrl: `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(projectApiUrl)}`,
+      editorUrl: `https://turbowarp.org/editor?project_url=${encodeURIComponent(projectApiUrl)}`,
+      fullPageUrl: `https://turbowarp.org/fullscreen.html?project_url=${encodeURIComponent(projectApiUrl)}`,
+      downloadUrl: trimmed.startsWith('data:') || trimmed.startsWith('blob:') ? trimmed : projectApiUrl,
+      isDirectEmbeddable: true,
+      hint: `Proyek Scratch (.sb3) "${cleanFileName}" dimuat langsung ke TurboWarp ⚡`
+    };
+  }
+
+  // 3. Google Drive Link without studentId
   if (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com')) {
     const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
                        trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
                        trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
     const fileId = driveMatch ? driveMatch[1] : '';
+    const cleanFileName = (options?.fileName || 'project.sb3').replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
 
-    const directDownload = fileId 
-      ? `https://drive.google.com/uc?export=download&id=${fileId}` 
-      : trimmed;
-
-    // Direct CORS-enabled proxy URL for TurboWarp
-    // We append #project.sb3 to the URL so TurboWarp's parser recognizes the file as a Scratch 3 project instead of a generic zip
-    const gDriveDownload = fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : trimmed;
-    const corsProxyUrl = fileId 
-      ? `https://corsproxy.io/?${encodeURIComponent(gDriveDownload)}#project.sb3`
-      : '';
-
-    const embedUrl = corsProxyUrl
-      ? `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(corsProxyUrl)}`
-      : `https://turbowarp.org/embed.html`;
-
-    const editorUrl = corsProxyUrl
-      ? `https://turbowarp.org/editor?project_url=${encodeURIComponent(corsProxyUrl)}`
-      : `https://turbowarp.org/editor`;
-
-    return {
-      type: 'google_drive',
-      embedUrl,
-      editorUrl,
-      downloadUrl: directDownload,
-      scratchId: fileId,
-      isDirectEmbeddable: Boolean(fileId),
-      hint: 'Proyek Scratch (.sb3) dari Google Drive dimuat langsung ke TurboWarp ⚡'
-    };
+    if (fileId) {
+      const projectApiUrl = getSb3DriveApiUrl(fileId, cleanFileName);
+      return {
+        type: 'google_drive',
+        embedUrl: `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(projectApiUrl)}`,
+        editorUrl: `https://turbowarp.org/editor?project_url=${encodeURIComponent(projectApiUrl)}`,
+        fullPageUrl: `https://turbowarp.org/fullscreen.html?project_url=${encodeURIComponent(projectApiUrl)}`,
+        downloadUrl: projectApiUrl,
+        scratchId: fileId,
+        isDirectEmbeddable: true,
+        hint: 'Proyek Scratch (.sb3) dari Google Drive dimuat langsung ke TurboWarp ⚡'
+      };
+    }
   }
 
-  // 3. Base64 Data URL
-  if (trimmed.startsWith('data:')) {
-    return {
-      type: 'data_url',
-      embedUrl: 'https://turbowarp.org/embed.html',
-      editorUrl: 'https://turbowarp.org/editor',
-      downloadUrl: trimmed,
-      isDirectEmbeddable: false,
-      hint: 'File .sb3 tersimpan di database. Klik Unduh .sb3 lalu buka/seret ke layar TurboWarp di bawah!'
-    };
-  }
-
-  // 4. Blob URL
-  if (trimmed.startsWith('blob:')) {
-    return {
-      type: 'blob_url',
-      embedUrl: 'https://turbowarp.org/embed.html',
-      editorUrl: 'https://turbowarp.org/editor',
-      downloadUrl: trimmed,
-      isDirectEmbeddable: false,
-      hint: 'Klik Unduh .sb3 lalu seret file ke layar TurboWarp di bawah untuk memainkannya!'
-    };
-  }
-
-  // 5. Direct Public HTTP/HTTPS URL to an .sb3 file (excluding drive)
+  // 4. Direct Public HTTP/HTTPS URL to an .sb3 file (excluding drive)
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
     return {
       type: 'direct_sb3',
       embedUrl: `https://turbowarp.org/embed.html?project_url=${encodeURIComponent(trimmed)}`,
       editorUrl: `https://turbowarp.org/editor?project_url=${encodeURIComponent(trimmed)}`,
+      fullPageUrl: `https://turbowarp.org/fullscreen.html?project_url=${encodeURIComponent(trimmed)}`,
       downloadUrl: trimmed,
       isDirectEmbeddable: true,
       hint: 'Proyek .sb3 tersambung langsung ke TurboWarp ⚡'
+    };
+  }
+
+  // 5. Fallback for Data URL or Blob URL without studentId
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return {
+      type: trimmed.startsWith('data:') ? 'data_url' : 'blob_url',
+      embedUrl: 'https://turbowarp.org/embed.html',
+      editorUrl: 'https://turbowarp.org/editor',
+      fullPageUrl: 'https://turbowarp.org/fullscreen.html',
+      downloadUrl: trimmed,
+      isDirectEmbeddable: false,
+      hint: 'File .sb3 tersimpan di database. Klik Unduh .sb3 untuk memainkannya di TurboWarp!'
     };
   }
 
@@ -167,6 +185,7 @@ export function parseScratchUrl(url?: string): ScratchUrlInfo {
     type: 'empty',
     embedUrl: 'https://turbowarp.org/embed.html',
     editorUrl: 'https://turbowarp.org/editor',
+    fullPageUrl: 'https://turbowarp.org/fullscreen.html',
     isDirectEmbeddable: false
   };
 }
@@ -268,7 +287,7 @@ export function parsePdfUrl(url?: string): PdfUrlInfo {
  * Downloads an .sb3 file ensuring the file is NEVER saved as a .zip file.
  * Solves the issue where Google Drive labels .sb3 files as ZIP archives.
  */
-export async function downloadSb3File(url: string, rawFileName: string): Promise<void> {
+export async function downloadSb3File(url: string, rawFileName: string, studentId?: string): Promise<void> {
   const cleanName = rawFileName.replace(/\.zip$/i, '').replace(/\.sb3$/i, '') + '.sb3';
 
   // 1. If it's a local Blob or Base64 Data URL, download directly as .sb3
@@ -282,14 +301,16 @@ export async function downloadSb3File(url: string, rawFileName: string): Promise
     return;
   }
 
-  // 2. If it's a Google Drive link, download via proxy or fetch as Blob to enforce .sb3 extension
+  // 2. Route via /api/sb3-project or /api/sb3-proxy to guarantee .sb3 extension & correct MIME type
   try {
     let fetchUrl = url;
-    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+    if (studentId) {
+      fetchUrl = `/api/sb3-project?id=${encodeURIComponent(studentId)}&file=${encodeURIComponent(cleanName)}`;
+    } else if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
       const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
       const fileId = match ? match[1] : '';
       if (fileId) {
-        fetchUrl = `/api/sb3-proxy?id=${fileId}&name=${encodeURIComponent(cleanName)}`;
+        fetchUrl = `/api/sb3-project?driveId=${fileId}&file=${encodeURIComponent(cleanName)}`;
       }
     }
 
