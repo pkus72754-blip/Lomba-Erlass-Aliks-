@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Play, Download, ExternalLink, HelpCircle, Code2, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { parseScratchUrl, downloadSb3File } from '../services/fileHelpers';
+import { Logo } from './Logo';
 
 interface ScratchViewerModalProps {
   isOpen: boolean;
@@ -40,9 +41,7 @@ export const ScratchViewerModal: React.FC<ScratchViewerModalProps> = ({
         {/* Header */}
         <div className="bg-[#38BDF8] border-b-4 border-black p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#FFE600] border-2 border-black flex items-center justify-center font-black text-xl neo-shadow-sm">
-              🐱
-            </div>
+            <Logo size="sm" showCodeBadge={true} />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-lg sm:text-xl text-black font-['Outfit',sans-serif] truncate max-w-md">

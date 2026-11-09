@@ -19,6 +19,7 @@ import {
   Check
 } from 'lucide-react';
 import { Student, FirebaseConfigType } from '../types';
+import { Logo } from './Logo';
 import { 
   uploadFileToStorage, 
   saveStudent, 
@@ -291,9 +292,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         {/* Modal Top Header */}
         <div className="bg-[#FFE600] border-b-4 border-black p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white border-2 border-black flex items-center justify-center font-bold text-lg neo-shadow-sm">
-              🔑
-            </div>
+            <Logo size="sm" showCodeBadge={true} />
             <div>
               <h2 className="font-black text-xl text-black font-['Outfit',sans-serif]">
                 Panel Guru & Admin Lomba Koding 2026

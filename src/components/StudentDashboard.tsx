@@ -20,6 +20,7 @@ import { Student } from '../types';
 import { fireStudentSuccessConfetti } from './Confetti';
 import { PdfViewerModal } from './PdfViewerModal';
 import { ScratchViewerModal } from './ScratchViewerModal';
+import { Logo } from './Logo';
 import { 
   parseScratchUrl, 
   parsePdfUrl, 
@@ -203,17 +204,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
-            <div className="inline-flex items-center gap-2 bg-black text-[#35E88E] text-xs font-black px-3 py-1 border border-black uppercase tracking-wider mb-2">
-              <Star className="w-3.5 h-3.5 fill-[#35E88E]" />
-              <span>PESERTA RESMI ERLASS CODING 2026</span>
-            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <Logo size="lg" showCodeBadge={true} />
+              <div>
+                <div className="inline-flex items-center gap-2 bg-black text-[#35E88E] text-xs font-black px-3 py-1 border border-black uppercase tracking-wider mb-2">
+                  <Star className="w-3.5 h-3.5 fill-[#35E88E]" />
+                  <span>PESERTA RESMI ERLASS CODING 2026</span>
+                </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-black tracking-tight font-['Outfit',sans-serif]">
-              Halo, {student.studentName}! 👋
-            </h1>
-            <p className="text-lg sm:text-xl font-black text-black/90 mt-1">
-              Ready for Coding? Ayo wujudkan ide hebatmu menjadi karya nyata di Scratch!
-            </p>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-black tracking-tight font-['Outfit',sans-serif]">
+                  Halo, {student.studentName}! 👋
+                </h1>
+                <p className="text-base sm:text-lg font-black text-black/90 mt-1">
+                  Ready for Coding? Ayo wujudkan ide hebatmu menjadi karya nyata di Scratch!
+                </p>
+              </div>
+            </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-4 text-xs font-black">
               <span className="bg-white px-3 py-1 border-2 border-black neo-shadow-sm">

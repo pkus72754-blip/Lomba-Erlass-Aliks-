@@ -1,5 +1,6 @@
 import React from 'react';
-import { Trophy, Code2, Sparkles, BookOpen, Rocket, Star } from 'lucide-react';
+import { Trophy, Code2, Sparkles, BookOpen, Rocket, Star, Terminal } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface HeroSectionProps {
   totalStudents: number;
@@ -25,12 +26,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ totalStudents, onExplo
 
       <div className="max-w-4xl mx-auto text-center relative z-10">
         
-        {/* Top Kicker Badge */}
-        <div className="inline-flex items-center gap-2 bg-[#FFE600] px-4 py-1.5 border-3 border-black neo-shadow mb-6 rotate-[-1deg]">
-          <Trophy className="w-5 h-5 text-black" />
-          <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-black font-['Outfit',sans-serif]">
-            Ajang Prestasi & Kreativitas Digital Siswa SD
-          </span>
+        {/* Top Kicker Badge with Logo */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
+          <Logo size="lg" showCodeBadge={true} />
+          <div className="inline-flex items-center gap-2 bg-[#FFE600] px-4 py-2 border-3 border-black neo-shadow rotate-[-1deg]">
+            <Trophy className="w-5 h-5 text-black" />
+            <span className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-black font-['Outfit',sans-serif]">
+              Ajang Prestasi & Kreativitas Digital Siswa SD
+            </span>
+          </div>
         </div>
 
         {/* Main Massive Headline */}

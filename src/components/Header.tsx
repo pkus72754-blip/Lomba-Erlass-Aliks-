@@ -1,5 +1,6 @@
 import React from 'react';
-import { Lock, Sparkles, BookOpen, Laptop } from 'lucide-react';
+import { Lock, Sparkles, BookOpen, Laptop, Code2 } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface HeaderProps {
   onOpenAdmin: () => void;
@@ -15,11 +16,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdmin, isFirebaseLive, onR
         {/* Brand Lockup */}
         <button 
           onClick={onResetSearch}
-          className="flex items-center gap-3 text-left group focus:outline-none focus-visible:ring-4 focus-visible:ring-black"
+          className="flex items-center gap-3 text-left group focus:outline-none focus-visible:ring-4 focus-visible:ring-black cursor-pointer"
         >
-          <div className="w-12 h-12 bg-white border-3 border-black neo-shadow-sm flex items-center justify-center font-black text-2xl group-hover:scale-105 transition-transform">
-            ⚡
-          </div>
+          <Logo size="md" showCodeBadge={true} />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-xl sm:text-2xl text-black tracking-tight font-['Outfit',sans-serif]">
