@@ -54,7 +54,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [authError, setAuthError] = useState('');
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'list' | 'form' | 'firebase'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'form' | 'batch' | 'firebase'>('list');
 
   // Form State
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -76,6 +76,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [uploadSb3Progress, setUploadSb3Progress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Batch Upload States
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchStatusText, setBatchStatusText] = useState('');
+  const [batchLog, setBatchLog] = useState<{ name: string; status: 'success' | 'error'; message: string }[]>([]);
+  const [batchDefaultGrade, setBatchDefaultGrade] = useState('Kelas 5A');
+  const [batchDefaultCategory, setBatchDefaultCategory] = useState('Game Interaktif');
+  const [pasteRosterText, setPasteRosterText] = useState('');
 
   // Search in table
   const [searchTable, setSearchTable] = useState('');
@@ -143,6 +152,32 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  // Helper: Ekstraksi Nama Siswa & Kelas dari nama file yang diunggah
+  const extractStudentInfoFromFileName = (filename: string): { name: string; grade: string; category: string } => {
+    let clean = filename.replace(/\.(sb3|zip|pdf)$/i, '');
+    clean = clean.replace(/[_-]+/g, ' ').trim();
+
+    let detectedGrade = 'Kelas 5A';
+    const gradeMatch = clean.match(/\b(?:kelas\s*)?([1-6]\s*[A-Z]?)\b/i);
+    if (gradeMatch) {
+      detectedGrade = `Kelas ${gradeMatch[1].toUpperCase().replace(/\s+/g, '')}`;
+      clean = clean.replace(gradeMatch[0], '').trim();
+    }
+
+    clean = clean.replace(/\b(proyek|project|game|scratch|modul|coding|erlass|lomba|tugas|karya)\b/gi, '').trim();
+
+    const nameParts = clean.split(' ').filter(Boolean);
+    const formattedName = nameParts.length > 0 
+      ? nameParts.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+      : filename.replace(/\.[^/.]+$/, '');
+
+    return {
+      name: formattedName || 'Peserta Lomba',
+      grade: detectedGrade,
+      category: 'Game Interaktif'
+    };
+  };
+
   // Upload PDF Module with real-time progress and timeout safeguard
   const handleModuleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -157,6 +192,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setModuleUrl(res.url);
       setModuleFileName(res.fileName);
       if (res.fileKey) setModuleFileKey(res.fileKey);
+
+      // Otomatis isi Nama Siswa jika belum diisi berdasarkan nama file yang diunggah
+      if (!studentName.trim()) {
+        const info = extractStudentInfoFromFileName(file.name);
+        if (info.name) setStudentName(info.name);
+        if (info.grade) setGrade(info.grade);
+      }
+      if (!competitionIdea.trim()) {
+        setCompetitionIdea(`Modul panduan koding proyek Scratch untuk kompetisi Erlass Coding 2026.`);
+      }
+
       setNotification({ 
         type: 'success', 
         message: `Modul "${file.name}" berhasil disiapkan (${res.storageType === 'cloud' ? 'Firebase Cloud' : 'Penyimpanan Cepat Instan'})!` 
@@ -185,6 +231,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setSb3Url(res.url);
       setSb3FileName(res.fileName);
       if (res.fileKey) setSb3FileKey(res.fileKey);
+
+      // Otomatis isi Nama Siswa jika belum diisi berdasarkan nama file yang diunggah
+      if (!studentName.trim()) {
+        const info = extractStudentInfoFromFileName(file.name);
+        if (info.name) setStudentName(info.name);
+        if (info.grade) setGrade(info.grade);
+      }
+      if (!competitionIdea.trim()) {
+        setCompetitionIdea(`Proyek game koding Scratch untuk lomba Erlass Coding Competition 2026.`);
+      }
+
       setNotification({ 
         type: 'success', 
         message: `File Scratch "${file.name}" berhasil disiapkan (${res.storageType === 'cloud' ? 'Firebase Cloud' : 'Penyimpanan Cepat Instan'})!` 
@@ -238,6 +295,138 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Batch Upload Multiple SB3 Files at once
+  const handleBatchSb3Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setIsBatchProcessing(true);
+    setBatchProgress(5);
+    setBatchStatusText(`Menyiapkan ${files.length} file Scratch (.sb3)...`);
+    const logs: { name: string; status: 'success' | 'error'; message: string }[] = [];
+
+    let successCount = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const { name, grade } = extractStudentInfoFromFileName(file.name);
+      setBatchStatusText(`Mengunggah file untuk ${name} (${i + 1}/${files.length})...`);
+      
+      try {
+        const uploadRes = await uploadFileToStorage(file, 'scratch_projects');
+        
+        // Cek apakah siswa dengan nama ini sudah ada di database
+        const existingStudent = students.find(s => s.studentName.toLowerCase().trim() === name.toLowerCase().trim());
+
+        await saveStudent({
+          id: existingStudent?.id || undefined,
+          studentName: name,
+          grade: existingStudent?.grade || grade || batchDefaultGrade,
+          category: existingStudent?.category || batchDefaultCategory,
+          competitionIdea: existingStudent?.competitionIdea || `Proyek game koding Scratch "${file.name.replace(/\.[^/.]+$/, '')}" untuk Erlass Coding 2026.`,
+          moduleUrl: existingStudent?.moduleUrl || '',
+          moduleFileName: existingStudent?.moduleFileName || '',
+          moduleFileKey: existingStudent?.moduleFileKey || '',
+          sb3FileUrl: uploadRes.url,
+          sb3FileName: uploadRes.fileName,
+          sb3FileKey: uploadRes.fileKey || '',
+          createdAt: existingStudent?.createdAt || new Date().toISOString()
+        });
+
+        successCount++;
+        logs.push({
+          name: `${name} (${file.name})`,
+          status: 'success',
+          message: `Berhasil tersimpan ke realtime database (${uploadRes.storageType === 'cloud' ? 'Firebase Cloud' : 'Penyimpanan Instan'})`
+        });
+      } catch (err: any) {
+        logs.push({
+          name: `${name} (${file.name})`,
+          status: 'error',
+          message: err?.message || 'Gagal menyimpan file'
+        });
+      }
+
+      setBatchProgress(Math.round(((i + 1) / files.length) * 100));
+    }
+
+    setBatchLog(logs);
+    setIsBatchProcessing(false);
+    onRefreshStudents();
+    setNotification({
+      type: 'success',
+      message: `🎉 Selesai! ${successCount} dari ${files.length} file siswa berhasil diunggah & terhubung realtime!`
+    });
+    e.target.value = '';
+  };
+
+  // Import text / CSV roster
+  const handleImportRosterText = async () => {
+    const lines = pasteRosterText.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      alert('Silakan masukkan nama siswa terlebih dahulu (satu nama per baris atau format CSV).');
+      return;
+    }
+
+    setIsBatchProcessing(true);
+    setBatchProgress(10);
+    setBatchStatusText(`Memproses ${lines.length} nama siswa...`);
+    const logs: { name: string; status: 'success' | 'error'; message: string }[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const parts = line.split(/[,;\t]/).map(p => p.trim());
+      const sName = parts[0];
+      const sGrade = parts[1] || batchDefaultGrade;
+      const sCategory = parts[2] || batchDefaultCategory;
+      const sIdea = parts[3] || `Ide proyek koding siswa ${sName} untuk lomba Erlass Coding 2026.`;
+
+      if (!sName) continue;
+
+      try {
+        const existingStudent = students.find(s => s.studentName.toLowerCase().trim() === sName.toLowerCase().trim());
+        await saveStudent({
+          id: existingStudent?.id || undefined,
+          studentName: sName,
+          grade: sGrade,
+          category: sCategory,
+          competitionIdea: existingStudent?.competitionIdea || sIdea,
+          moduleUrl: existingStudent?.moduleUrl || '',
+          moduleFileName: existingStudent?.moduleFileName || '',
+          moduleFileKey: existingStudent?.moduleFileKey || '',
+          sb3FileUrl: existingStudent?.sb3FileUrl || '',
+          sb3FileName: existingStudent?.sb3FileName || '',
+          sb3FileKey: existingStudent?.sb3FileKey || '',
+          createdAt: existingStudent?.createdAt || new Date().toISOString()
+        });
+
+        successCount++;
+        logs.push({
+          name: sName,
+          status: 'success',
+          message: `Berhasil didaftarkan ke realtime database (${sGrade})`
+        });
+      } catch (err: any) {
+        logs.push({
+          name: sName,
+          status: 'error',
+          message: err?.message || 'Gagal menyimpan siswa'
+        });
+      }
+
+      setBatchProgress(Math.round(((i + 1) / lines.length) * 100));
+    }
+
+    setBatchLog(logs);
+    setIsBatchProcessing(false);
+    setPasteRosterText('');
+    onRefreshStudents();
+    setNotification({
+      type: 'success',
+      message: `🎉 Berhasil mendaftarkan ${successCount} siswa ke database realtime!`
+    });
   };
 
   // Save Firebase Config
@@ -400,6 +589,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   ➕ {editingStudentId ? 'Edit Siswa' : 'Tambah Siswa & Proyek'}
                 </button>
                 <button
+                  onClick={() => setActiveTab('batch')}
+                  className={`px-4 py-2 font-black text-xs sm:text-sm border-2 border-black neo-btn flex items-center gap-1.5 ${
+                    activeTab === 'batch' 
+                      ? 'bg-[#FFE600] text-black neo-shadow-sm translate-y-[-2px]' 
+                      : 'bg-neutral-100 hover:bg-neutral-200 text-black'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>📥 Unggah Banyak File / Batch</span>
+                </button>
+                <button
                   onClick={() => setActiveTab('firebase')}
                   className={`px-4 py-2 font-black text-xs sm:text-sm border-2 border-black neo-btn ${
                     activeTab === 'firebase' 
@@ -441,13 +641,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     />
                   </div>
 
-                  <button
-                    onClick={handleNewStudentClick}
-                    className="px-4 py-2 bg-[#35E88E] hover:bg-emerald-400 text-black font-black text-xs sm:text-sm border-2 border-black neo-shadow-sm neo-btn flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Tambah Peserta Baru</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setActiveTab('batch')}
+                      className="px-4 py-2 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs sm:text-sm border-2 border-black neo-shadow-sm neo-btn flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Unggah Banyak File / Batch</span>
+                    </button>
+                    <button
+                      onClick={handleNewStudentClick}
+                      className="px-4 py-2 bg-[#35E88E] hover:bg-emerald-400 text-black font-black text-xs sm:text-sm border-2 border-black neo-shadow-sm neo-btn flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tambah Peserta Baru</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Table */}
@@ -792,6 +1001,185 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
 
                   </form>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: UNGGAH BANYAK FILE / BATCH SISWA */}
+            {activeTab === 'batch' && (
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                <div className="max-w-3xl mx-auto space-y-6">
+                  
+                  {/* Header info */}
+                  <div className="bg-[#FFE600] border-3 border-black neo-shadow-sm p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Upload className="w-5 h-5 text-black" />
+                      <h3 className="text-lg font-black text-black font-['Outfit',sans-serif]">
+                        Unggah File Siswa & Sinkronisasi Realtime
+                      </h3>
+                    </div>
+                    <p className="text-xs font-bold text-black/80">
+                      Unggah banyak file <strong>.sb3</strong> Scratch sekaligus atau impor daftar nama siswa. Data akan langsung terhubung secara realtime ke database dan langsung tampil di halaman pencarian peserta.
+                    </p>
+                  </div>
+
+                  {/* Section 1: Upload Multiple .sb3 Scratch Files */}
+                  <div className="bg-white border-3 border-black neo-shadow-sm p-5 space-y-4">
+                    <div className="flex items-center justify-between border-b-2 border-black pb-3">
+                      <div>
+                        <h4 className="font-black text-sm text-black flex items-center gap-2">
+                          <span className="text-base">🐱</span>
+                          <span>1. Unggah Banyak File Scratch (.sb3) Sekaligus</span>
+                        </h4>
+                        <p className="text-xs text-black/70 mt-0.5">
+                          Nama siswa dan kelas akan otomatis diekstrak dari nama file (contoh: <code>Bianca_5A.sb3</code>, <code>Arga_Game.sb3</code>, <code>Abi.sb3</code>).
+                        </p>
+                      </div>
+                      <span className="bg-[#35E88E] text-black text-[11px] font-black px-2 py-0.5 border border-black shrink-0">
+                        OTOMATIS SINKRON
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="font-black text-black block mb-1">Kelas Default (jika tidak ada di nama file):</label>
+                        <select
+                          value={batchDefaultGrade}
+                          onChange={(e) => setBatchDefaultGrade(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border-2 border-black font-bold text-xs"
+                        >
+                          <option value="Kelas 5A">Kelas 5A</option>
+                          <option value="Kelas 5B">Kelas 5B</option>
+                          <option value="Kelas 5C">Kelas 5C</option>
+                          <option value="Kelas 4A">Kelas 4A</option>
+                          <option value="Kelas 4B">Kelas 4B</option>
+                          <option value="Kelas 6A">Kelas 6A</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="font-black text-black block mb-1">Kategori Default:</label>
+                        <select
+                          value={batchDefaultCategory}
+                          onChange={(e) => setBatchDefaultCategory(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border-2 border-black font-bold text-xs"
+                        >
+                          <option value="Game Interaktif">Game Interaktif</option>
+                          <option value="Animasi & Cerita">Animasi & Cerita</option>
+                          <option value="Simulasi Edukasi">Simulasi Edukasi</option>
+                          <option value="Karya Islami">Karya Islami</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="border-3 border-dashed border-black p-6 bg-[#FFFDF0] text-center hover:bg-[#FFF59D]/30 transition-colors">
+                      <input
+                        type="file"
+                        id="batch-sb3-input"
+                        multiple
+                        accept=".sb3,.zip"
+                        onChange={handleBatchSb3Upload}
+                        disabled={isBatchProcessing}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="batch-sb3-input"
+                        className={`inline-flex items-center gap-2 px-6 py-3 bg-[#38BDF8] hover:bg-sky-400 text-black font-black text-sm border-2 border-black neo-shadow-sm neo-btn cursor-pointer ${
+                          isBatchProcessing ? 'opacity-60 pointer-events-none' : ''
+                        }`}
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>Pilih Beberapa File .SB3 Siswa</span>
+                      </label>
+                      <p className="text-[11px] font-bold text-black/60 mt-2">
+                        💡 Bisa pilih sekaligus banyak file (tekan Ctrl/Cmd + klik semua file .sb3 siswa)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Import Roster / Name List */}
+                  <div className="bg-white border-3 border-black neo-shadow-sm p-5 space-y-4">
+                    <div className="border-b-2 border-black pb-3">
+                      <h4 className="font-black text-sm text-black flex items-center gap-2">
+                        <span className="text-base">📋</span>
+                        <span>2. Impor Daftar Nama Siswa (Teks / CSV)</span>
+                      </h4>
+                      <p className="text-xs text-black/70 mt-0.5">
+                        Ketik atau tempel daftar nama siswa (satu siswa per baris). Format opsional: <code>Nama Siswa, Kelas, Ide</code>
+                      </p>
+                    </div>
+
+                    <textarea
+                      value={pasteRosterText}
+                      onChange={(e) => setPasteRosterText(e.target.value)}
+                      placeholder={`Contoh tempel:\nBianca, Kelas 5A, Game Petualangan Labirin\nArga, Kelas 5A, Game Balap Mobil\nAbi, Kelas 5A, Game Pembersih Sampah\nFathiya, Kelas 5A, Animasi Islami\nAriza, Kelas 5A, Quiz Matematika Seru\nSyifa, Kelas 5A, Game Tangkap Buah`}
+                      rows={5}
+                      className="w-full p-3 bg-[#FFFDF0] border-2 border-black font-mono text-xs font-bold text-black focus:outline-none"
+                    />
+
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-[11px] font-bold text-black/60">
+                        {pasteRosterText.split('\n').filter(l => l.trim()).length} baris siswa terdeteksi
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleImportRosterText}
+                        disabled={isBatchProcessing || !pasteRosterText.trim()}
+                        className="px-5 py-2.5 bg-[#35E88E] hover:bg-emerald-400 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Impor & Daftarkan ke Database Realtime 🚀</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Progress & Log section */}
+                  {isBatchProcessing && (
+                    <div className="bg-[#FFE600] border-3 border-black p-4 neo-shadow-sm space-y-2">
+                      <div className="flex items-center justify-between text-xs font-black text-black">
+                        <span>{batchStatusText}</span>
+                        <span>{batchProgress}%</span>
+                      </div>
+                      <div className="w-full bg-white h-4 border-2 border-black overflow-hidden">
+                        <div
+                          className="bg-[#35E88E] h-full transition-all duration-200"
+                          style={{ width: `${batchProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Batch Result Logs */}
+                  {batchLog.length > 0 && (
+                    <div className="bg-white border-3 border-black p-4 neo-shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-black text-xs text-black uppercase tracking-wider">
+                          Riwayat Proses Terakhir ({batchLog.length} item):
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => setBatchLog([])}
+                          className="text-[10px] font-bold underline text-black/60 cursor-pointer"
+                        >
+                          Bersihkan Log
+                        </button>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-1 text-xs">
+                        {batchLog.map((log, i) => (
+                          <div
+                            key={i}
+                            className={`p-2 border border-black flex items-center justify-between ${
+                              log.status === 'success' ? 'bg-[#35E88E]/20 text-black' : 'bg-[#FF4D4D]/20 text-black'
+                            }`}
+                          >
+                            <span className="font-bold">{log.name}</span>
+                            <span className="text-[11px] font-bold">{log.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             )}

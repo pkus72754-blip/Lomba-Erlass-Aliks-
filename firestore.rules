@@ -8,13 +8,13 @@ service cloud.firestore {
 
     function isValidStudent(data) {
       return data.studentName is string &&
-             data.studentName.size() >= 2 &&
-             data.studentName.size() <= 100 &&
+             data.studentName.size() >= 1 &&
+             data.studentName.size() <= 150 &&
              data.competitionIdea is string &&
-             data.competitionIdea.size() >= 2 &&
-             data.competitionIdea.size() <= 3000 &&
-             (!('moduleUrl' in data) || (data.moduleUrl is string && data.moduleUrl.size() <= 1000)) &&
-             (!('sb3FileUrl' in data) || (data.sb3FileUrl is string && data.sb3FileUrl.size() <= 1000));
+             data.competitionIdea.size() >= 1 &&
+             data.competitionIdea.size() <= 10000 &&
+             (!('moduleUrl' in data) || (data.moduleUrl is string && data.moduleUrl.size() <= 1500000)) &&
+             (!('sb3FileUrl' in data) || (data.sb3FileUrl is string && data.sb3FileUrl.size() <= 1500000));
     }
 
     // Default deny

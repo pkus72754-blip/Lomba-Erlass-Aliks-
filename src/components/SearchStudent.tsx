@@ -19,13 +19,21 @@ export const SearchStudent: React.FC<SearchStudentProps> = ({
 
   // Suggestions filtered case-insensitively
   const suggestions = useMemo(() => {
-    if (!searchTerm.trim() || searchTerm.length < 2) return [];
+    if (!searchTerm.trim()) return [];
     const term = searchTerm.toLowerCase().trim();
     return students.filter(s => 
       s.studentName.toLowerCase().includes(term) ||
-      (s.grade && s.grade.toLowerCase().includes(term))
-    ).slice(0, 5);
+      (s.grade && s.grade.toLowerCase().includes(term)) ||
+      (s.category && s.category.toLowerCase().includes(term))
+    ).slice(0, 10);
   }, [students, searchTerm]);
+
+  // Sorted students alphabetically for neat browsing
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => 
+      a.studentName.localeCompare(b.studentName, 'id', { sensitivity: 'base' })
+    );
+  }, [students]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,20 +156,30 @@ export const SearchStudent: React.FC<SearchStudentProps> = ({
         <div className="mt-6 pt-5 border-t-2 border-black/20">
           {students.length > 0 ? (
             <div>
-              <p className="text-xs font-black text-black uppercase tracking-wider mb-2.5">
-                👥 Peserta Terdaftar ({students.length} Siswa):
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {students.slice(0, 6).map((st) => (
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <p className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#35E88E] border border-black animate-pulse"></span>
+                  <span>👥 PESERTA TERDAFTAR ({students.length} SISWA):</span>
+                </p>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black bg-black text-[#35E88E] px-2 py-0.5 border border-black uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#35E88E]"></span>
+                  <span>SINKRONISASI REALTIME</span>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-80 overflow-y-auto pr-1">
+                {sortedStudents.map((st) => (
                   <button
                     key={st.id}
                     type="button"
                     onClick={() => handleQuickPick(st)}
-                    className="px-3 py-1.5 bg-white hover:bg-[#35E88E] text-black font-extrabold text-xs border-2 border-black neo-shadow-sm neo-btn flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-white hover:bg-[#35E88E] text-black font-extrabold text-xs border-2 border-black neo-shadow-sm neo-btn flex items-center gap-1.5 cursor-pointer transition-transform"
+                    title={`Klik untuk membuka proyek koding ${st.studentName}`}
                   >
                     <span>👤</span>
                     <span>{st.studentName}</span>
-                    {st.grade && <span className="text-[10px] bg-black/10 px-1">{st.grade}</span>}
+                    {st.grade && <span className="text-[10px] bg-black/10 px-1 font-bold">{st.grade}</span>}
+                    {st.sb3FileUrl && <span className="text-[11px]" title="File Scratch (.sb3) tersedia">🐱</span>}
+                    {st.moduleUrl && <span className="text-[11px]" title="Modul PDF tersedia">📄</span>}
                   </button>
                 ))}
               </div>
