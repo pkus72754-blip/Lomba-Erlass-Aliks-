@@ -31,6 +31,15 @@ import {
   saveLocalStudents
 } from '../services/firebase';
 
+const GRADE_OPTIONS: string[] = [
+  'Kelas 1', 'Kelas 1A', 'Kelas 1B', 'Kelas 1C',
+  'Kelas 2', 'Kelas 2A', 'Kelas 2B', 'Kelas 2C',
+  'Kelas 3', 'Kelas 3A', 'Kelas 3B', 'Kelas 3C',
+  'Kelas 4', 'Kelas 4A', 'Kelas 4B', 'Kelas 4C',
+  'Kelas 5', 'Kelas 5A', 'Kelas 5B', 'Kelas 5C',
+  'Kelas 6', 'Kelas 6A', 'Kelas 6B', 'Kelas 6C'
+];
+
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -59,7 +68,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Form State
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [studentName, setStudentName] = useState('');
-  const [grade, setGrade] = useState('Kelas 5A');
+  const [grade, setGrade] = useState('Kelas 1A');
   const [category, setCategory] = useState('Game Interaktif');
   const [competitionIdea, setCompetitionIdea] = useState('');
   const [moduleUrl, setModuleUrl] = useState('');
@@ -82,7 +91,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [batchProgress, setBatchProgress] = useState(0);
   const [batchStatusText, setBatchStatusText] = useState('');
   const [batchLog, setBatchLog] = useState<{ name: string; status: 'success' | 'error'; message: string }[]>([]);
-  const [batchDefaultGrade, setBatchDefaultGrade] = useState('Kelas 5A');
+  const [batchDefaultGrade, setBatchDefaultGrade] = useState('Kelas 1A');
   const [batchDefaultCategory, setBatchDefaultCategory] = useState('Game Interaktif');
   const [pasteRosterText, setPasteRosterText] = useState('');
 
@@ -112,7 +121,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const handleEditClick = (student: Student) => {
     setEditingStudentId(student.id);
     setStudentName(student.studentName);
-    setGrade(student.grade || 'Kelas 5A');
+    setGrade(student.grade || 'Kelas 1A');
     setCategory(student.category || 'Game Interaktif');
     setCompetitionIdea(student.competitionIdea);
     setModuleUrl(student.moduleUrl || '');
@@ -127,7 +136,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const handleNewStudentClick = () => {
     setEditingStudentId(null);
     setStudentName('');
-    setGrade('Kelas 5A');
+    setGrade('Kelas 1A');
     setCategory('Game Interaktif');
     setCompetitionIdea('');
     setModuleUrl('');
@@ -157,7 +166,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     let clean = filename.replace(/\.(sb3|zip|pdf)$/i, '');
     clean = clean.replace(/[_-]+/g, ' ').trim();
 
-    let detectedGrade = 'Kelas 5A';
+    let detectedGrade = '';
     const gradeMatch = clean.match(/\b(?:kelas\s*)?([1-6]\s*[A-Z]?)\b/i);
     if (gradeMatch) {
       detectedGrade = `Kelas ${gradeMatch[1].toUpperCase().replace(/\s+/g, '')}`;
@@ -690,7 +699,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               {st.studentName}
                             </td>
                             <td className="p-3 border-r-2 border-black text-xs">
-                              <div className="font-black text-black">{st.grade || 'Kelas 5'}</div>
+                              <div className="font-black text-black">{st.grade || '-'}</div>
                               <div className="text-black/70 text-[11px]">{st.category || 'Scratch Game'}</div>
                             </td>
                             <td className="p-3 border-r-2 border-black max-w-xs truncate text-xs text-black/80" title={st.competitionIdea}>
@@ -805,17 +814,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           onChange={(e) => setGrade(e.target.value)}
                           className="w-full px-3 py-2.5 bg-[#FFFDF0] border-2 border-black font-bold text-sm focus:outline-none"
                         >
-                          <option value="Kelas 3A">Kelas 3A</option>
-                          <option value="Kelas 3B">Kelas 3B</option>
-                          <option value="Kelas 3C">Kelas 3C</option>
-                          <option value="Kelas 4A">Kelas 4A</option>
-                          <option value="Kelas 4B">Kelas 4B</option>
-                          <option value="Kelas 4C">Kelas 4C</option>
-                          <option value="Kelas 5A">Kelas 5A</option>
-                          <option value="Kelas 5B">Kelas 5B</option>
-                          <option value="Kelas 5C">Kelas 5C</option>
-                          <option value="Kelas 6A">Kelas 6A</option>
-                          <option value="Kelas 6B">Kelas 6B</option>
+                          {!GRADE_OPTIONS.includes(grade) && grade && (
+                            <option value={grade}>{grade}</option>
+                          )}
+                          {GRADE_OPTIONS.map((g) => (
+                            <option key={g} value={g}>
+                              {g}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -1048,12 +1054,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           onChange={(e) => setBatchDefaultGrade(e.target.value)}
                           className="w-full px-3 py-2 bg-white border-2 border-black font-bold text-xs"
                         >
-                          <option value="Kelas 5A">Kelas 5A</option>
-                          <option value="Kelas 5B">Kelas 5B</option>
-                          <option value="Kelas 5C">Kelas 5C</option>
-                          <option value="Kelas 4A">Kelas 4A</option>
-                          <option value="Kelas 4B">Kelas 4B</option>
-                          <option value="Kelas 6A">Kelas 6A</option>
+                          {GRADE_OPTIONS.map((g) => (
+                            <option key={g} value={g}>
+                              {g}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
