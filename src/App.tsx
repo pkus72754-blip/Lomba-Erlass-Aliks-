@@ -31,10 +31,10 @@ export default function App() {
     setIsFirebaseLive(isLive);
 
     const unsubscribe = subscribeToStudents(
-      (liveStudents) => {
+      (liveStudents, meta) => {
         setStudents(liveStudents);
         setIsLoading(false);
-        setIsFirebaseLive(true);
+        setIsFirebaseLive(meta ? meta.isLive : true);
 
         // Jika siswa sedang dibuka, perbarui datanya secara realtime
         setSelectedStudent((currentSelected) => {
@@ -46,6 +46,7 @@ export default function App() {
       (err) => {
         console.warn('Realtime sync fallback:', err);
         setIsLoading(false);
+        setIsFirebaseLive(false);
       }
     );
 
@@ -57,8 +58,7 @@ export default function App() {
   const handleRefresh = async () => {
     const res = await fetchAllStudents();
     setStudents(res.students);
-    const { isLive } = initializeFirebaseServices();
-    setIsFirebaseLive(isLive);
+    setIsFirebaseLive(res.source === 'firestore');
   };
 
   return (
@@ -97,6 +97,7 @@ export default function App() {
                 students={students}
                 onSelectStudent={(st) => setSelectedStudent(st)}
                 isLoading={isLoading}
+                isFirebaseLive={isFirebaseLive}
               />
             </div>
           </>

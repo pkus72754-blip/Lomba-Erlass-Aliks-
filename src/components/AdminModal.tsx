@@ -26,6 +26,7 @@ import {
   deleteStudentById,
   saveStoredFirebaseConfig,
   getStoredFirebaseConfig,
+  resetStoredFirebaseConfig,
   testConnection,
   clearAllLocalDemoData,
   saveLocalStudents
@@ -441,8 +442,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Save Firebase Config
   const handleSaveConfig = () => {
     saveStoredFirebaseConfig(firebaseConfig);
-    setNotification({ type: 'success', message: 'Konfigurasi Firebase berhasil disimpan di browser!' });
+    setNotification({ type: 'success', message: 'Konfigurasi Firebase berhasil disimpan & disambungkan ulang!' });
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  // Reset Firebase Config to Official Default (eskul-coding-aliks)
+  const handleResetConfig = async () => {
+    const def = resetStoredFirebaseConfig();
+    setFirebaseConfig(def);
+    setIsTestingConnection(true);
+    try {
+      const res = await testConnection();
+      setConnectionTestResult(res);
+      onRefreshStudents();
+      setNotification({ type: 'success', message: 'Kredensial dikembalikan ke default resmi (eskul-coding-aliks) & disinkronkan!' });
+    } catch (e: any) {
+      setConnectionTestResult({ success: false, message: e?.message || 'Gagal menguji koneksi setelah reset' });
+    } finally {
+      setIsTestingConnection(false);
+      setTimeout(() => setNotification(null), 3500);
+    }
   };
 
   // Test Connection
@@ -453,6 +472,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       saveStoredFirebaseConfig(firebaseConfig);
       const res = await testConnection();
       setConnectionTestResult(res);
+      if (res.success) {
+        onRefreshStudents();
+      }
     } catch (e: any) {
       setConnectionTestResult({ success: false, message: e.message || 'Gagal mengetes koneksi' });
     } finally {
@@ -1284,7 +1306,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       <button
                         type="button"
                         onClick={handleSaveConfig}
-                        className="px-4 py-2 bg-[#35E88E] hover:bg-emerald-400 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn"
+                        className="px-4 py-2 bg-[#35E88E] hover:bg-emerald-400 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
                       >
                         Simpan Kredensial
                       </button>
@@ -1293,10 +1315,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         type="button"
                         onClick={handleTestConnection}
                         disabled={isTestingConnection}
-                        className="px-4 py-2 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn flex items-center gap-1.5"
+                        className="px-4 py-2 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn flex items-center gap-1.5 cursor-pointer"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${isTestingConnection ? 'animate-spin' : ''}`} />
                         <span>{isTestingConnection ? 'Menguji...' : 'Uji Koneksi Firestore'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleResetConfig}
+                        disabled={isTestingConnection}
+                        className="px-4 py-2 bg-white hover:bg-neutral-100 text-black font-black text-xs border-2 border-black neo-shadow-sm neo-btn cursor-pointer"
+                      >
+                        Reset Default Resmi
                       </button>
                     </div>
 

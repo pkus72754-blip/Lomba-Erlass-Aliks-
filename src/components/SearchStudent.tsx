@@ -6,12 +6,14 @@ interface SearchStudentProps {
   students: Student[];
   onSelectStudent: (student: Student) => void;
   isLoading: boolean;
+  isFirebaseLive?: boolean;
 }
 
 export const SearchStudent: React.FC<SearchStudentProps> = ({
   students,
   onSelectStudent,
-  isLoading
+  isLoading,
+  isFirebaseLive = true
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -161,9 +163,17 @@ export const SearchStudent: React.FC<SearchStudentProps> = ({
                   <span className="w-2.5 h-2.5 rounded-full bg-[#35E88E] border border-black animate-pulse"></span>
                   <span>👥 PESERTA TERDAFTAR ({students.length} SISWA):</span>
                 </p>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black bg-black text-[#35E88E] px-2 py-0.5 border border-black uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#35E88E]"></span>
-                  <span>SINKRONISASI REALTIME</span>
+                <span
+                  className={`inline-flex items-center gap-1.5 text-[10px] font-black px-2 py-0.5 border border-black uppercase tracking-wider ${
+                    isFirebaseLive ? 'bg-black text-[#35E88E]' : 'bg-[#FFF59D] text-black'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isFirebaseLive ? 'bg-[#35E88E] animate-pulse' : 'bg-amber-500'
+                    }`}
+                  ></span>
+                  <span>{isFirebaseLive ? 'SINKRONISASI REALTIME' : 'MENYAMBUNG FIREBASE...'}</span>
                 </span>
               </div>
               <div className="flex flex-wrap gap-2 max-h-80 overflow-y-auto pr-1">

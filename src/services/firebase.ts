@@ -1,13 +1,15 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, deleteApp, FirebaseApp } from 'firebase/app';
 import { 
   getFirestore, 
+  initializeFirestore,
+  enableNetwork,
   collection, 
-  getDocs, 
+  getDocs,
+  getDocsFromServer,
   doc, 
   setDoc, 
   deleteDoc, 
   Firestore,
-  getDocFromServer,
   onSnapshot,
   Unsubscribe
 } from 'firebase/firestore';
@@ -38,6 +40,7 @@ export const DEFAULT_FIREBASE_CONFIG: FirebaseConfigType = {
 
 const STORAGE_KEY_CONFIG = 'erlass_firebase_custom_config';
 const STORAGE_KEY_STUDENTS = 'erlass_students_local_db';
+export const FIREBASE_CONFIG_UPDATED_EVENT = 'firebase-config-updated';
 
 // Data demo dikosongkan secara total
 export const INITIAL_STUDENTS: Student[] = [];
@@ -48,7 +51,16 @@ export function getStoredFirebaseConfig(): FirebaseConfigType {
     const stored = localStorage.getItem(STORAGE_KEY_CONFIG);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed.projectId === 'erlass-coding-2026' || parsed.apiKey?.includes('REPLACE_ME')) {
+      const isInvalid =
+        !parsed ||
+        !parsed.apiKey ||
+        !parsed.projectId ||
+        parsed.projectId === 'erlass-coding-2026' ||
+        parsed.apiKey.includes('REPLACE_ME') ||
+        parsed.apiKey.includes('YOUR_API_KEY') ||
+        parsed.projectId.includes('your-project-id');
+
+      if (isInvalid) {
         localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(DEFAULT_FIREBASE_CONFIG));
         return DEFAULT_FIREBASE_CONFIG;
       }
@@ -60,12 +72,53 @@ export function getStoredFirebaseConfig(): FirebaseConfigType {
   return DEFAULT_FIREBASE_CONFIG;
 }
 
+// Instance Firebase Singleton
+let firebaseAppInstance: FirebaseApp | null = null;
+let firestoreInstance: Firestore | null = null;
+let storageInstance: FirebaseStorage | null = null;
+let initializedProjectId: string | null = null;
+
+export async function resetFirebaseServicesCache(): Promise<void> {
+  const prevApp = firebaseAppInstance;
+  firebaseAppInstance = null;
+  firestoreInstance = null;
+  storageInstance = null;
+  initializedProjectId = null;
+  if (prevApp) {
+    try {
+      await deleteApp(prevApp);
+    } catch {
+      // ignore if already deleted
+    }
+  }
+}
+
 export function saveStoredFirebaseConfig(config: FirebaseConfigType): void {
   try {
     localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
+    // Reset singleton if project/api changed and notify active listeners
+    if (initializedProjectId !== config.projectId) {
+      resetFirebaseServicesCache().finally(() => {
+        window.dispatchEvent(new Event(FIREBASE_CONFIG_UPDATED_EVENT));
+      });
+    } else {
+      window.dispatchEvent(new Event(FIREBASE_CONFIG_UPDATED_EVENT));
+    }
   } catch (e) {
     console.error('Gagal menyimpan firebase config:', e);
   }
+}
+
+export function resetStoredFirebaseConfig(): FirebaseConfigType {
+  try {
+    localStorage.removeItem(STORAGE_KEY_CONFIG);
+  } catch (e) {
+    console.error('Gagal mereset firebase config:', e);
+  }
+  resetFirebaseServicesCache().finally(() => {
+    window.dispatchEvent(new Event(FIREBASE_CONFIG_UPDATED_EVENT));
+  });
+  return DEFAULT_FIREBASE_CONFIG;
 }
 
 // Cek apakah kredensial Firebase aktif & valid
@@ -80,11 +133,6 @@ export function isFirebaseConfigured(config?: FirebaseConfigType): boolean {
   );
 }
 
-// Instance Firebase Singleton
-let firebaseAppInstance: FirebaseApp | null = null;
-let firestoreInstance: Firestore | null = null;
-let storageInstance: FirebaseStorage | null = null;
-
 export function initializeFirebaseServices() {
   const config = getStoredFirebaseConfig();
   
@@ -95,10 +143,19 @@ export function initializeFirebaseServices() {
   try {
     if (!firebaseAppInstance) {
       const apps = getApps();
-      firebaseAppInstance = apps.length > 0 ? apps[0] : initializeApp(config);
+      const matchingApp = apps.find(a => a.options?.projectId === config.projectId);
+      firebaseAppInstance = matchingApp || (apps.length > 0 && apps[0].options?.apiKey === config.apiKey ? apps[0] : initializeApp(config, `erlass-${config.projectId}-${Date.now()}`));
+      initializedProjectId = config.projectId;
     }
     if (!firestoreInstance && firebaseAppInstance) {
-      firestoreInstance = getFirestore(firebaseAppInstance);
+      try {
+        // Auto-detect long polling ensures reliable realtime sync on school WiFi / proxy / iFrame
+        firestoreInstance = initializeFirestore(firebaseAppInstance, {
+          experimentalAutoDetectLongPolling: true
+        });
+      } catch {
+        firestoreInstance = getFirestore(firebaseAppInstance);
+      }
     }
     if (!storageInstance && firebaseAppInstance) {
       storageInstance = getStorage(firebaseAppInstance);
@@ -148,75 +205,144 @@ export function saveLocalStudents(students: Student[]): void {
   }
 }
 
+export interface RealtimeSyncMeta {
+  isLive: boolean;
+  fromCache: boolean;
+}
+
 /**
  * =========================================================================
  * REALTIME LISTENER: SINKRONISASI FIRESTORE REALTIME KE CLIENT
+ * Dilengkapi auto-reconnect & network recovery
  * =========================================================================
  */
 export function subscribeToStudents(
-  onData: (students: Student[]) => void,
+  onData: (students: Student[], meta?: RealtimeSyncMeta) => void,
   onError?: (err: any) => void
 ): Unsubscribe {
-  const { db, isLive } = initializeFirebaseServices();
+  let activeUnsubscribe: Unsubscribe | null = null;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let isDisposed = false;
 
-  if (isLive && db) {
-    try {
-      const colRef = collection(db, 'students');
-      
-      const unsubscribe = onSnapshot(
-        colRef,
-        (snapshot) => {
-          const liveStudents: Student[] = snapshot.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              studentName: data.studentName || '',
-              competitionIdea: data.competitionIdea || '',
-              moduleUrl: data.moduleUrl || '',
-              sb3FileUrl: data.sb3FileUrl || '',
-              createdAt: data.createdAt || new Date().toISOString(),
-              moduleFileName: data.moduleFileName || '',
-              sb3FileName: data.sb3FileName || '',
-              moduleFileKey: data.moduleFileKey || '',
-              sb3FileKey: data.sb3FileKey || '',
-              category: data.category || '',
-              grade: data.grade || ''
-            };
-          });
+  const attachListener = () => {
+    if (isDisposed) return;
 
-          // Urutkan berdasarkan waktu pembuatan terbaru
-          liveStudents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-          // Sinkronkan ke cache lokal
-          saveLocalStudents(liveStudents);
-          onData(liveStudents);
-        },
-        (error) => {
-          console.warn('Realtime listener error dari Firestore:', error);
-          if (onError) onError(error);
-          onData(getLocalStudents());
-        }
-      );
-
-      return unsubscribe;
-    } catch (error) {
-      console.warn('Gagal memasang onSnapshot Firestore:', error);
+    if (activeUnsubscribe) {
+      try { activeUnsubscribe(); } catch {}
+      activeUnsubscribe = null;
     }
-  }
 
-  // Fallback offline / local
-  onData(getLocalStudents());
-  return () => {};
+    const { db, isLive } = initializeFirebaseServices();
+
+    if (isLive && db) {
+      try {
+        enableNetwork(db).catch(() => {});
+        const colRef = collection(db, 'students');
+
+        activeUnsubscribe = onSnapshot(
+          colRef,
+          { includeMetadataChanges: true },
+          (snapshot) => {
+            if (isDisposed) return;
+            const liveStudents: Student[] = snapshot.docs.map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                studentName: data.studentName || '',
+                competitionIdea: data.competitionIdea || '',
+                moduleUrl: data.moduleUrl || '',
+                sb3FileUrl: data.sb3FileUrl || '',
+                createdAt: data.createdAt || new Date().toISOString(),
+                moduleFileName: data.moduleFileName || '',
+                sb3FileName: data.sb3FileName || '',
+                moduleFileKey: data.moduleFileKey || '',
+                sb3FileKey: data.sb3FileKey || '',
+                category: data.category || '',
+                grade: data.grade || ''
+              };
+            });
+
+            // Urutkan berdasarkan waktu pembuatan terbaru
+            liveStudents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+            // Sinkronkan ke cache lokal
+            saveLocalStudents(liveStudents);
+            const fromCache = snapshot.metadata?.fromCache ?? false;
+            onData(liveStudents, { isLive: !fromCache, fromCache });
+          },
+          (error) => {
+            if (isDisposed) return;
+            console.warn('Realtime listener error dari Firestore:', error);
+            if (onError) onError(error);
+            // Berikan data lokal tanpa menandai isLive = true
+            onData(getLocalStudents(), { isLive: false, fromCache: true });
+
+            // Jadwalkan penyambungan ulang otomatis setiap 5 detik
+            if (!retryTimer) {
+              retryTimer = setTimeout(() => {
+                retryTimer = null;
+                attachListener();
+              }, 5000);
+            }
+          }
+        );
+
+        return;
+      } catch (error) {
+        console.warn('Gagal memasang onSnapshot Firestore:', error);
+      }
+    }
+
+    // Fallback offline / local
+    onData(getLocalStudents(), { isLive: false, fromCache: true });
+  };
+
+  attachListener();
+
+  const handleOnline = () => {
+    const { db } = initializeFirebaseServices();
+    if (db) {
+      enableNetwork(db).catch(() => {});
+    }
+    attachListener();
+  };
+
+  const handleConfigUpdated = () => {
+    attachListener();
+  };
+
+  window.addEventListener('online', handleOnline);
+  window.addEventListener(FIREBASE_CONFIG_UPDATED_EVENT, handleConfigUpdated);
+
+  return () => {
+    isDisposed = true;
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener(FIREBASE_CONFIG_UPDATED_EVENT, handleConfigUpdated);
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+    if (activeUnsubscribe) {
+      try { activeUnsubscribe(); } catch {}
+      activeUnsubscribe = null;
+    }
+  };
 }
 
-// Fetch all students (Once)
+// Fetch all students (Once, prioritizing server)
 export async function fetchAllStudents(): Promise<{ students: Student[]; source: 'firestore' | 'local' }> {
   const { db, isLive } = initializeFirebaseServices();
 
   if (isLive && db) {
     try {
+      await enableNetwork(db).catch(() => {});
       const colRef = collection(db, 'students');
-      const snapshot = await getDocs(colRef);
+      let snapshot;
+      try {
+        snapshot = await getDocsFromServer(colRef);
+      } catch {
+        snapshot = await getDocs(colRef);
+      }
       const liveStudents: Student[] = snapshot.docs.map(d => {
         const data = d.data();
         return {
@@ -234,6 +360,7 @@ export async function fetchAllStudents(): Promise<{ students: Student[]; source:
           grade: data.grade || ''
         };
       });
+      liveStudents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       saveLocalStudents(liveStudents);
       return { students: liveStudents, source: 'firestore' };
     } catch (error) {
@@ -256,6 +383,28 @@ export async function saveStudent(
     createdAt: student.createdAt || new Date().toISOString()
   };
 
+  const payload = {
+    studentName: fullStudent.studentName,
+    competitionIdea: fullStudent.competitionIdea,
+    moduleUrl: fullStudent.moduleUrl || '',
+    sb3FileUrl: fullStudent.sb3FileUrl || '',
+    createdAt: fullStudent.createdAt,
+    moduleFileName: fullStudent.moduleFileName || '',
+    sb3FileName: fullStudent.sb3FileName || '',
+    moduleFileKey: fullStudent.moduleFileKey || '',
+    sb3FileKey: fullStudent.sb3FileKey || '',
+    category: fullStudent.category || '',
+    grade: fullStudent.grade || ''
+  };
+
+  // Cek estimasi ukuran dokumen Firestore (batas maksimal 1 MiB = 1.048.576 byte)
+  const estimatedBytes = new Blob([JSON.stringify(payload)]).size;
+  if (estimatedBytes > 1000000) {
+    throw new Error(
+      'Ukuran total data + file terlalu besar untuk disimpan langsung di Firestore (>980 KB). Gunakan tautan Google Drive untuk file berukuran besar!'
+    );
+  }
+
   // Update cache lokal terlebih dahulu
   const currentLocal = getLocalStudents();
   const existingIdx = currentLocal.findIndex(s => s.id === id);
@@ -270,20 +419,9 @@ export async function saveStudent(
   let isFirestore = false;
   if (isLive && db) {
     try {
+      await enableNetwork(db).catch(() => {});
       const docRef = doc(db, 'students', id);
-      await setDoc(docRef, {
-        studentName: fullStudent.studentName,
-        competitionIdea: fullStudent.competitionIdea,
-        moduleUrl: fullStudent.moduleUrl || '',
-        sb3FileUrl: fullStudent.sb3FileUrl || '',
-        createdAt: fullStudent.createdAt,
-        moduleFileName: fullStudent.moduleFileName || '',
-        sb3FileName: fullStudent.sb3FileName || '',
-        moduleFileKey: fullStudent.moduleFileKey || '',
-        sb3FileKey: fullStudent.sb3FileKey || '',
-        category: fullStudent.category || '',
-        grade: fullStudent.grade || ''
-      });
+      await setDoc(docRef, payload);
       isFirestore = true;
     } catch (err: any) {
       console.error('Gagal menulis ke Firestore:', err);
@@ -306,6 +444,7 @@ export async function deleteStudentById(studentId: string): Promise<void> {
   // Hapus dari Firestore jika live
   if (isLive && db) {
     try {
+      await enableNetwork(db).catch(() => {});
       const docRef = doc(db, 'students', studentId);
       await deleteDoc(docRef);
     } catch (err: any) {
@@ -316,7 +455,7 @@ export async function deleteStudentById(studentId: string): Promise<void> {
 }
 
 /**
- * Upload file dengan batas waktu (timeout 8 detik) & progress real-time.
+ * Upload file dengan batas waktu (timeout 6 detik) & progress real-time.
  * Mencegah tombol terjebak dalam status "Mengunggah..." jika Firebase Storage belum diaktifkan atau lambat.
  */
 export async function uploadFileToStorage(
@@ -386,12 +525,12 @@ export async function uploadFileToStorage(
     }
   }
 
-  // 2. Jika file <= 800 KB, ubah menjadi Data URL (Base64) agar tersimpan langsung di Firestore
+  // 2. Jika file <= 680 KB, ubah menjadi Data URL (Base64) agar aman di bawah limit 1 MiB Firestore
   // Ini menjamin file dapat diakses 100% oleh semua siswa dari komputer/HP manapun tanpa link mati!
   if (onProgress) onProgress(90);
   await storeFileInIndexedDB(fileKey, file);
 
-  if (file.size <= 800 * 1024) {
+  if (file.size <= 680 * 1024) {
     try {
       const dataUrl = await fileToBase64(file);
       if (onProgress) onProgress(100);
@@ -407,7 +546,7 @@ export async function uploadFileToStorage(
     }
   }
 
-  // 3. Jika file > 800 KB, simpan di IndexedDB
+  // 3. Jika file > 680 KB, simpan di IndexedDB
   if (onProgress) onProgress(100);
   const blobUrl = URL.createObjectURL(file);
   return {
@@ -415,11 +554,11 @@ export async function uploadFileToStorage(
     fileName: file.name,
     storageType: 'local',
     fileKey,
-    note: 'Ukuran file besar (>800KB). Disarankan menempelkan link Google Drive agar bisa dibuka semua siswa.'
+    note: 'Ukuran file besar (>680KB). Disarankan menempelkan link Google Drive agar bisa dibuka semua siswa.'
   };
 }
 
-// Test Connection Helper
+// Test Connection Helper (verifikasi langsung roundtrip ke server koleksi students)
 export async function testConnection(): Promise<{ success: boolean; message: string }> {
   const config = getStoredFirebaseConfig();
   if (!isFirebaseConfigured(config)) {
@@ -434,19 +573,17 @@ export async function testConnection(): Promise<{ success: boolean; message: str
     if (!db) {
       return { success: false, message: 'Gagal inisialisasi Firestore.' };
     }
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    return { success: true, message: `Berhasil terhubung ke Firebase Firestore (${config.projectId})!` };
+    await enableNetwork(db).catch(() => {});
+    const snapshot = await getDocsFromServer(collection(db, 'students'));
+    return {
+      success: true,
+      message: `Berhasil terhubung secara realtime ke Firebase Firestore (${config.projectId})! Terdeteksi ${snapshot.size} peserta aktif di server.`
+    };
   } catch (error: any) {
     if (error?.message?.includes('the client is offline') || error?.message?.includes('failed-precondition')) {
       return {
         success: false,
         message: 'Klien offline atau belum dapat menjangkau server Firestore.'
-      };
-    }
-    if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
-      return {
-        success: true,
-        message: `Terhubung ke Firebase Firestore (${config.projectId})! Server merespons.`
       };
     }
     return {
